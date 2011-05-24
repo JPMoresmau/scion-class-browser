@@ -1,0 +1,17 @@
+name:           scion-browser
+version:        0.1
+cabal-version:  >= 1.2
+build-type:     Simple
+
+executable hoogle-parsec
+  hs-source-dirs:  src
+  main-is:         Main.hs
+  build-depends:   base, parsec >= 3, 
+                   cereal, derive, bytestring,
+                   mtl, 
+                   directory, filepath,
+                   ghc, ghc-paths, Cabal, haskell-src-exts,
+                   process, unix,
+                   pretty-show, deepseq
+  other-modules:   Scion.Browser.Parser, Scion.Browser.Installed, Scion.Browser.Builder
+

@@ -1,6 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module Scion.PackageDB where
+module Scion.Browser where
 
 import Control.DeepSeq
 import Data.ByteString (ByteString)

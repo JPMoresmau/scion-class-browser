@@ -1,4 +1,4 @@
-module Scion.PackageDB.Parser
+module Scion.Browser.Parser
 ( parseHoogleString
 , parseHoogleFile
 , parseDirectory
@@ -8,10 +8,10 @@ import Control.DeepSeq
 import Control.Monad
 import Data.ByteString (ByteString, readFile, writeFile)
 import Data.Serialize
-import Scion.PackageDB
-import Scion.PackageDB.Parser.Stage1
-import Scion.PackageDB.Parser.Stage2
-import Scion.PackageDB.Util
+import Scion.Browser
+import Scion.Browser.Parser.Stage1
+import Scion.Browser.Parser.Stage2
+import Scion.Browser.Util
 import System.Directory
 import System.FilePath ((</>), takeFileName)
 import Text.Parsec.Error (ParseError)

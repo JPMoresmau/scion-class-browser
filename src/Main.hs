@@ -1,11 +1,11 @@
 module Main where
 
 import Data.Serialize
-import Scion.PackageDB
-import Scion.PackageDB.Builder
-import Scion.PackageDB.Installed
+import Scion.Browser
+import Scion.Browser.Builder
+import Scion.Browser.Installed
+import Scion.Browser.Parser
 import Text.Show.Pretty
-import Scion.PackageDB.Parser
 import qualified Data.ByteString as BS
 
 main :: IO ()

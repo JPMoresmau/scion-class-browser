@@ -1,6 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module Scion.PackageDB.Parser.Stage2
+module Scion.Browser.Parser.Stage2
 ( convertHoogleToPackage
 ) where
 
@@ -11,8 +11,8 @@ import Data.Char (isUpper)
 import Data.DeriveTH
 import Data.List (last)
 import Data.Maybe (fromJust, isNothing)
-import Scion.PackageDB
-import Scion.PackageDB.Parser.Stage1
+import Scion.Browser
+import Scion.Browser.Parser.Stage1
 import Text.ParserCombinators.Parsec (ParseError)
 import Text.ParserCombinators.Parsec.Error (newErrorMessage, Message(..))
 import Text.ParserCombinators.Parsec.Pos (newPos)

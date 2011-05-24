@@ -1,13 +1,13 @@
 {-# LANGUAGE RankNTypes #-}
 
-module Scion.PackageDB.Parser.Stage1
+module Scion.Browser.Parser.Stage1
 ( hoogleParser
 , HoogleItem (..)
 ) where
 
 import Control.Monad
 import Data.List (intercalate)
-import Scion.PackageDB
+import Scion.Browser
 import Text.Parsec.ByteString as BS
 import Text.Parsec.Char
 import Text.Parsec.Combinator

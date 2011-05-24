@@ -1,4 +1,4 @@
-module Scion.PackageDB.Installed
+module Scion.Browser.Installed
 ( getInstalledPackages
 , updateDatabase
 ) where
@@ -8,9 +8,9 @@ import Distribution.InstalledPackageInfo
 import Distribution.Package (PackageName(..), PackageIdentifier (..), pkgName)
 import Distribution.Version
 import GHC.Paths (ghc_pkg)
-import Scion.PackageDB
-import Scion.PackageDB.Builder (createCabalDatabase)
-import Scion.PackageDB.Util
+import Scion.Browser
+import Scion.Browser.Builder (createCabalDatabase)
+import Scion.Browser.Util
 import System.Directory
 import System.FilePath
 import System.IO.Error
@@ -70,3 +70,4 @@ getConfDirs :: IO [FilePath]
 getConfDirs = do
   src <- readProcess ghc_pkg ["list"] ""
   return $ map init $ filter (\x -> not (null x) && head x == '/') $ lines src
+

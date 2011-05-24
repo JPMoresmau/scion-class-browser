@@ -1,12 +1,11 @@
-module Scion.PackageDB.Builder where
+module Scion.Browser.Builder where
 
-import Scion.PackageDB
-import Scion.PackageDB.Parser
-import Scion.PackageDB.Util
+import Scion.Browser
+import Scion.Browser.Parser
+import Scion.Browser.Util
 import System.Directory
 import System.Exit
 import System.FilePath
-import System.Unix.Directory (withTemporaryDirectory, withWorkingDirectory)
 import Text.Parsec.Error (ParseError)
 import Text.ParserCombinators.Parsec.Error (newErrorMessage, Message(..))
 import Text.ParserCombinators.Parsec.Pos (newPos)
