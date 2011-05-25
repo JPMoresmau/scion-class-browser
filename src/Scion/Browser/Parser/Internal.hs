@@ -4,6 +4,9 @@ module Scion.Browser.Parser.Internal where
 
 import Control.Monad
 import Data.List (intercalate)
+import qualified Data.Map as M
+import Data.Maybe (maybe)
+import Distribution.Package (PackageIdentifier(..), PackageName(..))
 import Distribution.Version
 import Language.Haskell.Exts.Annotated.Syntax
 import qualified Language.Haskell.Exts.Parser as Parser
@@ -18,7 +21,22 @@ import Text.Parsec.Prim
 type BSParser a = forall st. BS.GenParser Char st a
 
 hoogleParser :: BSParser (Documented Package)
-hoogleParser = undefined
+hoogleParser = do spaces
+                  many initialComment
+                  spaces
+                  pkgDoc <- docComment
+                  spaces
+                  pkgName <- package
+                  spaces
+                  pkgVersion <- version
+                  spaces
+                  modules <- many $ try (spaces >> documented module_)
+                  spaces
+                  eof
+                  return $ Package (docFromString pkgDoc)
+                                   (PackageIdentifier (PackageName pkgName)
+                                                      pkgVersion)
+                                   (M.fromList $ map (\m -> (getModuleName m, m)) modules)
 
 initialComment :: BSParser String
 initialComment = do try $ string "-- " >> notFollowedBy (char '|')
@@ -56,17 +74,29 @@ module_ doc = do string "module"
                  spaces1
                  name <- moduleName
                  spaces0
-                 
+                 decls <- many $ try (eol >> spaces >> documented decl)
                  return $ Module doc
                                  (Just (ModuleHead NoDoc name Nothing Nothing))
                                  []
                                  []
-                                 []
+                                 decls
 
 moduleName :: BSParser (Documented ModuleName)
 moduleName = do cons <- conid `sepBy` char '.'
                 let name = intercalate "." (map getid cons)
                 return $ ModuleName NoDoc name
+
+getModuleName :: Documented Module -> String
+getModuleName (Module _ (Just (ModuleHead _ (ModuleName _ name) _ _)) _ _ _) = name
+
+decl :: Doc -> BSParser (Documented Decl)
+decl doc =  choice $ map ($ doc) [ instance_
+                                 , class_
+                                 , type_
+                                 , data_
+                                 , newtype_
+                                 , function
+                                 ]
 
 functionLike :: BSParser (Documented Name) -> BSParser (Documented Name, Documented Type)
 functionLike p = do name <- p
@@ -167,6 +197,32 @@ data_ = dataOrNewType "data" (DataType NoDoc)
 
 newtype_ :: Doc -> BSParser (Documented Decl)
 newtype_ = dataOrNewType "newtype" (NewType NoDoc)
+
+class_ :: Doc -> BSParser (Documented Decl)
+class_ doc = do string "class"
+                spaces0
+                rest <- many $ noneOf "|\r\n"
+                fd' <- optionMaybe (do string "|"
+                                       spaces0
+                                       iFunDep <- funDep
+                                       rFunDep <- many $ try (spaces0 >> char ',' >> spaces0 >> funDep)
+                                       return $ iFunDep:rFunDep)
+                let Parser.ParseOk ty' = Parser.parseType rest
+                    ty = document NoDoc ty'
+                    (ctx, head) = typeToContextAndHead ty
+                    fd = maybe [] id fd'
+                return $ ClassDecl doc ctx head fd Nothing
+                
+
+funDep :: BSParser (Documented FunDep)
+funDep = do iVarLeft <- varid
+            rVarLeft <- many $ try (spaces1 >> varid)
+            spaces0
+            string "->"
+            spaces0
+            iVarRight <- varid
+            rVarRight <- many $ try (spaces1 >> varid)
+            return $ FunDep NoDoc (iVarLeft:rVarLeft) (iVarRight:rVarRight)
 
 {-
 qualifiedVarid :: BSParser [String]

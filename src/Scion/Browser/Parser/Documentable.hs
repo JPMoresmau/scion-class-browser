@@ -35,7 +35,8 @@ instance Documentable S.TyVarBind A.TyVarBind where
   document d (S.UnkindedVar n) = A.UnkindedVar d (document d n)
 
 instance Documentable S.Context A.Context where
-  document d v = A.CxTuple d (fmap (document d) v)
+  document d [a] = A.CxSingle d (document d a)
+  document d v   = A.CxTuple d (fmap (document d) v)
 
 instance Documentable S.Asst A.Asst where
   document d (S.ClassA q t)   = A.ClassA d (document d q)

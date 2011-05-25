@@ -26,7 +26,7 @@ main = do -- (db, errors) <- createHackageDatabase "/home/serras/gsoc/haskell-wo
           -- mapM_ (\(Doc _ (Package n v _)) -> putStrLn $ n ++ "-" ++ v) db
           -- let encoded = encode db
           -- BS.writeFile "/home/serras/gsoc/haskell-workspace/example.db" encoded
-          case runP (data_ NoDoc) () "zas" (BS8.pack "data Show a => Ejemplo a :: * -> *\nZas :: t -> Ejemplo a\nBol :: v -> Ejemplo b") of
+          case runP (class_ NoDoc) () "zas" (BS8.pack "class V a => Terence a b | a -> b") of
             Left e -> putStrLn $ show e
             Right t -> putStrLn $ show t
           case parseType "Show a b" of
