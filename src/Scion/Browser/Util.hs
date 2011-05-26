@@ -37,12 +37,12 @@ executeCommand tmp exe args =
 
 -- |Converts a list of parsed packages into a complete database,
 -- and merges a list of errors.
-partitionPackages :: [(FilePath, Either ParseError (Documented Package))] -> (Database, [(FilePath, ParseError)])
-partitionPackages []                       = (M.empty, [])
+partitionPackages :: [(FilePath, Either ParseError (Documented Package))] -> ([Documented Package], [(FilePath, ParseError)])
+partitionPackages []                       = ([], [])
 partitionPackages ((fname, Left error):xs) = let (db, errors) = partitionPackages xs
                                              in  (db, (fname, error):errors)
 partitionPackages ((fname, Right pkg):xs)  = let (db, errors) = partitionPackages xs
-                                             in  (M.insert (packageId pkg) pkg db, errors)
+                                             in  (pkg:db, errors)
 
 -- |Takes out the "." and ".." special directory
 -- entries from a list of file paths.

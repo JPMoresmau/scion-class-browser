@@ -1,4 +1,4 @@
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE ScopedTypeVariables, TemplateHaskell #-}
 
 module Scion.Browser.Parser
 ( parseHoogleString
@@ -6,10 +6,9 @@ module Scion.Browser.Parser
 , parseDirectory
 ) where
 
-import Control.DeepSeq
 import Control.Monad
 import qualified Data.ByteString as BS
-import Data.Binary
+import Data.Serialize
 import Data.Monoid (mconcat)
 import Scion.Browser
 import Scion.Browser.Parser.Internal (hoogleParser)
@@ -17,9 +16,9 @@ import Scion.Browser.Util
 import System.Directory
 import System.FilePath ((</>), takeFileName)
 import System.IO
-import Text.Parsec.Error (ParseError)
+import Text.Parsec.Error (ParseError(..))
 import Text.Parsec.Prim (runP)
-import Text.Parsec.ByteString as BS
+-- import Text.Parsec.ByteString as BS
 import Text.ParserCombinators.Parsec
 import Text.ParserCombinators.Parsec.Error (newErrorMessage, Message(..))
 import Text.ParserCombinators.Parsec.Pos (newPos)
@@ -29,7 +28,7 @@ import Text.ParserCombinators.Parsec.Pos (newPos)
 parseHoogleString :: String -> BS.ByteString -> Either ParseError (Documented Package)
 parseHoogleString name contents = case runP hoogleParser () name contents of
                                     Left e    -> Left e
-                                    Right pkg -> pkg `deepseq` Right pkg
+                                    Right pkg -> Right pkg
 
 -- | Parses a file in Hoogle documentation format, returning
 --   the documentation of the entire package, or the corresponding
@@ -75,10 +74,19 @@ parseDirectoryFiles dir tmpdir =
   do contents' <- getDirectoryContents dir
      let contents = map (\d -> dir </> d) (filterDots contents')
      files <- filterM doesFileExist contents
-     fPackages <- mapM (\fname -> do putStrLn $ "parsing " ++ fname
+     fPackages <- mapM (\fname -> do putChar '.'
+                                     hFlush stdout
                                      p <- parseHoogleFile fname
-                                     return (fname, p) )
+                                     case p of
+                                       Left _ -> return (fname, p)
+                                       Right pkg -> do let tmpFile = tmpdir </> takeFileName fname
+                                                       withFile tmpFile WriteMode $
+                                                         \hnd -> BS.hPut hnd (encode pkg)
+                                                       s <- withFile tmpFile ReadMode $
+                                                              \hnd -> do s <- BS.hGetContents hnd
+                                                                         return s
+                                                       let Right (pkg' :: Documented Package) = decode s
+                                                       return (fname, Right pkg'))
                        files
-     let (pkgs, errors) = partitionPackages fPackages
-     return $ pkgs `deepseq` (pkgs, errors)
+     return $ partitionPackages fPackages
 

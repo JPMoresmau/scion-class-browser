@@ -8,7 +8,7 @@ executable hoogle-parsec
   main-is:         Main.hs
   build-depends:   base, text, containers,
                    parsec >= 3,
-                   binary, derive, bytestring,
+                   cereal, derive, bytestring,
                    directory, filepath,
                    Cabal, haskell-src-exts,
                    process, unix,
