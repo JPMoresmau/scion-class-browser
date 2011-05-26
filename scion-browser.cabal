@@ -11,5 +11,6 @@ executable hoogle-parsec
                    binary, derive, bytestring,
                    directory, filepath,
                    Cabal, haskell-src-exts,
-                   process, unix
+                   process, unix,
+                   deepseq
 

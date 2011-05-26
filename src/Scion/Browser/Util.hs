@@ -2,6 +2,8 @@
 
 module Scion.Browser.Util where
 
+import qualified Data.Map as M
+import Distribution.Package (packageId)
 import Scion.Browser
 import System.Exit (ExitCode)
 import System.Process
@@ -35,12 +37,12 @@ executeCommand tmp exe args =
 
 -- |Converts a list of parsed packages into a complete database,
 -- and merges a list of errors.
-partitionPackages :: [(FilePath, Either ParseError (Doc Package))] -> (Database, [(FilePath, ParseError)])
-partitionPackages []                       = ([], [])
+partitionPackages :: [(FilePath, Either ParseError (Documented Package))] -> (Database, [(FilePath, ParseError)])
+partitionPackages []                       = (M.empty, [])
 partitionPackages ((fname, Left error):xs) = let (db, errors) = partitionPackages xs
                                              in  (db, (fname, error):errors)
 partitionPackages ((fname, Right pkg):xs)  = let (db, errors) = partitionPackages xs
-                                             in  (pkg:db, errors)
+                                             in  (M.insert (packageId pkg) pkg db, errors)
 
 -- |Takes out the "." and ".." special directory
 -- entries from a list of file paths.

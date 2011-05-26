@@ -1,3 +1,5 @@
+{-# LANGUAGE ScopedTypeVariables #-}
+
 module Scion.Browser.Parser
 ( parseHoogleString
 , parseHoogleFile
@@ -6,14 +8,15 @@ module Scion.Browser.Parser
 
 import Control.DeepSeq
 import Control.Monad
-import Data.ByteString (ByteString, readFile, writeFile)
-import Data.Serialize
+import qualified Data.ByteString as BS
+import Data.Binary
+import Data.Monoid (mconcat)
 import Scion.Browser
-import Scion.Browser.Parser.Stage1
-import Scion.Browser.Parser.Stage2
+import Scion.Browser.Parser.Internal (hoogleParser)
 import Scion.Browser.Util
 import System.Directory
 import System.FilePath ((</>), takeFileName)
+import System.IO
 import Text.Parsec.Error (ParseError)
 import Text.Parsec.Prim (runP)
 import Text.Parsec.ByteString as BS
@@ -23,19 +26,19 @@ import Text.ParserCombinators.Parsec.Pos (newPos)
 
 -- | Parses the contents of a string containing the 
 --   Hoogle file contents.
-parseHoogleString :: String -> ByteString -> Either ParseError (Doc Package)
+parseHoogleString :: String -> BS.ByteString -> Either ParseError (Documented Package)
 parseHoogleString name contents = case runP hoogleParser () name contents of
-                                    Left err     -> Left err
-                                    Right parsed -> convertHoogleToPackage name parsed
+                                    Left e    -> Left e
+                                    Right pkg -> pkg `deepseq` Right pkg
 
 -- | Parses a file in Hoogle documentation format, returning
 --   the documentation of the entire package, or the corresponding
 --   error during the parsing.
-parseHoogleFile :: FilePath -> IO (Either ParseError (Doc Package))
-parseHoogleFile fname = do parsed <- BS.parseFromFile hoogleParser fname
-                           case parsed of
-                             Left error -> return $ Left error
-                             Right p    -> return $ convertHoogleToPackage fname p
+parseHoogleFile :: FilePath -> IO (Either ParseError (Documented Package))
+parseHoogleFile fname = (withFile fname ReadMode $
+                           \hnd -> do c <- BS.hGetContents hnd
+                                      return $ parseHoogleString fname c
+                        )
                         `catch`
                         (\e -> return $ Left (newErrorMessage (Message "error reading file")
                                                               (newPos fname 0 0)))
@@ -58,7 +61,7 @@ parseDirectory dir tmpdir =
      let innerDirs = map (\d -> d </> "doc" </> "html") (concat vDirs)
      -- Parse directories recursively
      dPackages <- mapM (\dir -> parseDirectoryFiles dir tmpdir) innerDirs -- IO [...]
-     let dbs    = concat $ map fst dPackages
+     let dbs    = mconcat $ map fst dPackages
          errors = concat $ map snd dPackages
      return (dbs, errors)
 
@@ -74,16 +77,8 @@ parseDirectoryFiles dir tmpdir =
      files <- filterM doesFileExist contents
      fPackages <- mapM (\fname -> do putStrLn $ "parsing " ++ fname
                                      p <- parseHoogleFile fname
-                                     case p of
-                                       Left _ -> return (fname, p)
-                                       Right pkg -> do let tmpFile = tmpdir </> takeFileName fname
-                                                           tmpEncoded = encode pkg
-                                                       -- encode and decode to file to save space
-                                                       -- (it forces evaluation)
-                                                       Data.ByteString.writeFile tmpFile tmpEncoded
-                                                       tmpDecoded <- Data.ByteString.readFile tmpFile
-                                                       let Right pkg' = decode tmpDecoded
-                                                       return (fname, Right pkg'))
+                                     return (fname, p) )
                        files
-     return $ partitionPackages fPackages
+     let (pkgs, errors) = partitionPackages fPackages
+     return $ pkgs `deepseq` (pkgs, errors)
 
