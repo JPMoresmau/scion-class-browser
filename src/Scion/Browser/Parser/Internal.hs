@@ -4,9 +4,8 @@ module Scion.Browser.Parser.Internal where
 
 import Control.Monad
 import Data.Char (isControl)
-import Data.List (intercalate, last)
+import Data.List (intercalate)
 import qualified Data.Map as M
-import Data.Maybe (maybe)
 import Distribution.Package (PackageIdentifier(..), PackageName(..))
 import Distribution.Version
 import Language.Haskell.Exts.Annotated.Syntax
@@ -27,16 +26,16 @@ hoogleParser = do spaces
                   spaces
                   pkgDoc <- docComment
                   spacesOrEol1
-                  pkgName <- package
+                  pkgN <- package
                   spacesOrEol1
-                  pkgVersion <- version
+                  pkgV <- version
                   spaces0
                   modules <- many $ try (spacesOrEol0 >> documented module_)
                   spaces
                   eof
                   return $ Package (docFromString pkgDoc)
-                                   (PackageIdentifier (PackageName pkgName)
-                                                      pkgVersion)
+                                   (PackageIdentifier (PackageName pkgN)
+                                                      pkgV)
                                    (M.fromList $ map (\m -> (getModuleName m, m)) modules)
 
 initialComment :: BSParser String
@@ -66,9 +65,9 @@ package = do string "@package"
 version :: BSParser Version
 version = do string "@version"
              spaces1
-             number <- number `sepBy` char '.'
+             numbers <- number `sepBy` char '.'
              restOfLine
-             return $ Version number []
+             return $ Version numbers []
 
 module_ :: Doc -> BSParser (Documented Module)
 module_ doc = do string "module"
@@ -89,6 +88,7 @@ moduleName = do cons <- conid `sepBy` char '.'
 
 getModuleName :: Documented Module -> String
 getModuleName (Module _ (Just (ModuleHead _ (ModuleName _ name) _ _)) _ _ _) = name
+getModuleName _ = error "This should never happen"
 
 decl :: Doc -> BSParser [Documented Decl]
 decl doc =  choice [ listed $ function doc
@@ -242,10 +242,10 @@ dataOrNewType keyword dOrN doc = do string keyword
                                                          spaces0
                                                          kind) -}
                                     ty <- parseType rest
-                                    let (ctx, head) = typeToContextAndHead ty
+                                    let (ctx, hd) = typeToContextAndHead ty
                                     consAndFns <- many $ try (spacesOrEol0 >> documented constructorOrFunction)
                                     let (fns, cons) = divideConstructorAndFunctions consAndFns
-                                    return $ (GDataDecl doc dOrN ctx head k cons Nothing, fns)
+                                    return $ (GDataDecl doc dOrN ctx hd k cons Nothing, fns)
 
 divideConstructorAndFunctions :: [Either (Documented Decl) (Documented GadtDecl)] -> ([Documented Decl], [Documented GadtDecl])
 divideConstructorAndFunctions []     = ([], [])
@@ -287,9 +287,9 @@ class_ doc = do string "class"
                 -- HACK: in some Hoogle files, kinds are added to the class
                 optional $ string "::" >> restOfLine
                 ty <- parseType rest
-                let (ctx, head) = typeToContextAndHead ty
+                let (ctx, hd) = typeToContextAndHead ty
                     fd = maybe [] id fd'
-                return $ ClassDecl doc ctx head fd Nothing
+                return $ ClassDecl doc ctx hd fd Nothing
 
 allButWhereColonPipe :: BSParser Char
 allButWhereColonPipe = try (do char ':'
@@ -328,20 +328,20 @@ qualifiedConid = conid `sepBy` char '.'
 varid :: BSParser (Documented Name)
 varid = try (do initial <- lower <|> char '_'
                 rest <- many $ alphaNum <|> oneOf allowedSpecialCharactersInIds
-                let id = initial:rest
-                guard $ not (id `elem` haskellKeywords)
-                return $ Ident NoDoc id)
+                let var = initial:rest
+                guard $ not (var `elem` haskellKeywords)
+                return $ Ident NoDoc var)
         <|> 
         try (do initial <- oneOf (tail specialCharacters)
                 rest <- many (oneOf specialCharacters)
-                let id = initial:rest
-                guard $ not (id `elem` haskellReservedOps)
-                return $ Symbol NoDoc id)
+                let var = initial:rest
+                guard $ not (var `elem` haskellReservedOps)
+                return $ Symbol NoDoc var)
         <|>
         try (do char '('
-                id <- varid
+                var <- varid
                 char ')'
-                return id)
+                return var)
 
 conid :: BSParser (Documented Name)
 conid = (do initial <- upper
@@ -350,14 +350,14 @@ conid = (do initial <- upper
         <|> 
         try (do initial <- char ':'
                 rest <- many (oneOf specialCharacters)
-                let id = initial:rest
-                guard $ not (id `elem` haskellReservedOps)
-                return $ Symbol NoDoc id)
+                let con = initial:rest
+                guard $ not (con `elem` haskellReservedOps)
+                return $ Symbol NoDoc con)
         <|>
         try (do char '('
-                id <- conid
+                con <- conid
                 char ')'
-                return id)
+                return con)
 
 getid :: Documented Name -> String
 getid (Ident _ s)  = s
@@ -411,7 +411,7 @@ getContextAndType (TyForall _ _ ctx ty) = (ctx, ty)
 getContextAndType ty                    = (Nothing, ty)
 
 lineariseType :: Documented Type -> [Documented Type]
-lineariseType (TyApp d x y) = (lineariseType x) ++ [y]
+lineariseType (TyApp _ x y) = (lineariseType x) ++ [y]
 lineariseType ty            = [ty]
 
 typeToContextAndHead :: (Documented Type) -> (Maybe (Documented Context), Documented DeclHead)
@@ -420,9 +420,10 @@ typeToContextAndHead t = let (ctx, ty) = getContextAndType t
                              vars = toKindedVars params
                          in  (ctx, DHead NoDoc name vars)
 
+toKindedVars :: [Type Doc] -> [TyVarBind Doc]
 toKindedVars []         = []
 toKindedVars ((TyVar d (Ident _ n1)):( (TyList _ (TyVar _ (Ident _ n2))): xs )) =
   (UnkindedVar d (Ident NoDoc $ n1 ++ "[" ++ n2 ++ "]")) : toKindedVars xs
 toKindedVars ((TyVar d n):xs) = (UnkindedVar d n) : toKindedVars xs
-toKindedVars (x:xs)           = error $ show x
+toKindedVars (x:_)            = error $ show x
 

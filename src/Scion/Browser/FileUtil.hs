@@ -17,10 +17,8 @@ import Data.List (isSuffixOf)
 import System.Cmd
 import System.Directory
 import System.Exit
-import System.FilePath
 import System.IO
 import System.Posix.Files
-import System.Posix.Types
 import Foreign.C
 
 -- |Takes out the "." and ".." special directory
@@ -32,7 +30,7 @@ filterDots = filter (\d -> d /= "." && d /= "..")
 downloadFileLazy :: String -> IO (Maybe LBS.ByteString)
 downloadFileLazy url = do res <- simpleHTTP (getRequest url)
                           case res of
-                            Left e  -> return Nothing
+                            Left _  -> return Nothing
                             Right r -> let response = rspBody r
                                        in  return $ Just (LBS8.pack response)
 
@@ -40,7 +38,7 @@ downloadFileLazy url = do res <- simpleHTTP (getRequest url)
 downloadFileStrict :: String -> IO (Maybe SBS.ByteString)
 downloadFileStrict url = do res <- simpleHTTP (getRequest url)
                             case res of
-                              Left e  -> return Nothing
+                              Left _  -> return Nothing
                               Right r -> let response = rspBody r
                                          in  return $ Just (SBS8.pack response)
 
@@ -50,7 +48,8 @@ unTarGzip cnts folder = let ungzip  = GZip.decompress cnts
                             entries = Tar.read ungzip
                         in  do createDirectories entries
                                Tar.unpack folder entries
-                        where createDirectories Tar.Done = return ()
+                        where createDirectories Tar.Done     = return ()
+                              createDirectories (Tar.Fail _) = return ()
                               createDirectories (Tar.Next e es) =
                                 case Tar.entryContent e of
                                   Tar.NormalFile _ _ -> do let dir = folder </> takeDirectory (Tar.entryPath e)
@@ -99,8 +98,8 @@ mkdtemp template =
 --   3. It doesn't use /proc/mounts, which is ambiguous or wrong
 --	when you are inside a chroot.
 removeRecursiveSafely :: FilePath -> IO ()
-removeRecursiveSafely path =
-    traverse path removeFile removeDirectory umount
+removeRecursiveSafely pth =
+    traverse pth removeFile removeDirectory umount
     where
       umount path =
           do
@@ -121,10 +120,10 @@ traverse :: FilePath -> (FilePath -> IO ()) -> (FilePath -> IO ()) -> (FilePath 
 -- "unmount and remove" function.  However, because we are unmounting
 -- as we traverse, the contents of the file list may change in ways
 -- that could confuse the find function.
-traverse path f d m =
+traverse pth f d m =
     do
-      result <- try $ getSymbolicLinkStatus path
-      either (\ (_ :: SomeException) -> return ()) (doPath path) result
+      result <- try $ getSymbolicLinkStatus pth
+      either (\ (_ :: SomeException) -> return ()) (doPath pth) result
     where
       doPath path status =
           if isDirectory status then
@@ -137,7 +136,7 @@ traverse path f d m =
       doDirectoryFile _ _ _ "." = return ()
       doDirectoryFile _ _ _ ".." = return ()
       doDirectoryFile tries _ _ _ | tries >= 5 =
-          error ("Couldn't unmount file system on " ++ path)
+          error ("Couldn't unmount file system on " ++ pth)
       doDirectoryFile tries status path name =
           do
             let child = path </> name

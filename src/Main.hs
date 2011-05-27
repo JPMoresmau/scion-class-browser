@@ -11,7 +11,7 @@ main :: IO ()
 main = do -- 1. For creating the database
           -- saveHackageDatabase "hackage.db"
           -- 2. For loading the database
-          maybeDb <- loadMDatabase "hackage.db"
+          maybeDb <- loadDatabase "hackage.db"
           case maybeDb of
             Nothing -> putStrLn "Error reading database"
             Just db -> mapM_ 

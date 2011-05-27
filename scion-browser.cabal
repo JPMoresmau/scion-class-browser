@@ -19,7 +19,8 @@ executable hoogle-parsec
     tar              == 0.3.*,
     zlib             == 0.5.*,
     HTTP             >= 4000 && < 5000,
-    deepseq          >= 1.1 && < 2
+    deepseq          >= 1.1 && < 2,
+    scion            >= 0.1.0.10 && < 0.2
   
   if impl(ghc >= 7.0)
     build-depends:
@@ -33,5 +34,5 @@ executable hoogle-parsec
       directory    == 1.0.*,
       filepath     == 1.1.*
     
-  ghc-options: -rtsopts
+  ghc-options: -rtsopts -Wall -fno-warn-unused-do-bind -fno-warn-orphans
 

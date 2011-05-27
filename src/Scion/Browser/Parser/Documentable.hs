@@ -83,6 +83,6 @@ instance Documentable S.Kind A.Kind where
   document d (S.KindVar n)    = A.KindVar d (document d n)
 
 documentBoxed :: Doc -> S.Boxed -> A.Boxed
-documentBoxed d S.Boxed   = A.Boxed
-documentBoxed d S.Unboxed = A.Unboxed
+documentBoxed _ S.Boxed   = A.Boxed
+documentBoxed _ S.Unboxed = A.Unboxed
 

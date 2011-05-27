@@ -116,14 +116,14 @@ nothing = Nothing
 instance Serialize (Documented Module) where
   -- Only possible value
   -- Module l (Maybe (ModuleHead l)) [ModulePragma l] [ImportDecl l] [Decl l]
-  put (Module doc (Just head) _ _ decls) = do put doc
-                                              put head
-                                              put decls
-  put _                                  = error "Not allowed Module"
+  put (Module doc (Just hd) _ _ decls) = do put doc
+                                            put hd
+                                            put decls
+  put _                                = error "Not allowed Module"
   get = do doc <- get
-           head <- get
+           hd <- get
            decls <- get
-           return $ Module doc (Just head) [] [] decls
+           return $ Module doc (Just hd) [] [] decls
 
 instance Serialize (Documented ModuleHead) where
   -- Only possible value
@@ -145,32 +145,32 @@ instance Serialize (Documented Decl) where
   -- InstDecl l (Maybe (Context l)) (InstHead l) (Maybe [InstDecl l])
   -- TypeSig l [Name l] (Type l)
   -- TypeDecl l (DeclHead l) (Type l)
-  put (GDataDecl doc dOrM ctx head kind decls _) = do put doc
-                                                      putWord8 0
-                                                      case dOrM of
-                                                        DataType _ -> putWord8 0
-                                                        NewType _  -> putWord8 1
-                                                      put ctx
-                                                      put head
-                                                      put kind
-                                                      put decls
-  put (ClassDecl doc ctx head fdeps _) = do put doc
-                                            putWord8 1
-                                            put ctx
-                                            put head
-                                            put fdeps
-  put (InstDecl doc ctx head _) = do put doc
-                                     putWord8 2
-                                     put ctx
-                                     put head
+  put (GDataDecl doc dOrM ctx hd kind decls _) = do put doc
+                                                    putWord8 0
+                                                    case dOrM of
+                                                      DataType _ -> putWord8 0
+                                                      NewType _  -> putWord8 1
+                                                    put ctx
+                                                    put hd
+                                                    put kind
+                                                    put decls
+  put (ClassDecl doc ctx hd fdeps _) = do put doc
+                                          putWord8 1
+                                          put ctx
+                                          put hd
+                                          put fdeps
+  put (InstDecl doc ctx hd _) = do put doc
+                                   putWord8 2
+                                   put ctx
+                                   put hd
   put (TypeSig doc [name] ty) = do put doc
                                    putWord8 3
                                    put name
                                    put ty
-  put (TypeDecl doc head ty) = do put doc
-                                  putWord8 4
-                                  put head
-                                  put ty
+  put (TypeDecl doc hd ty) = do put doc
+                                putWord8 4
+                                put hd
+                                put ty
   put _ = error "Not allowed Decl"
   get = do doc <- get
            tag <- getWord8
@@ -178,25 +178,25 @@ instance Serialize (Documented Decl) where
              0 -> do dOrM' <- getWord8
                      let dOrM = case dOrM' of
                                   0 -> dataType
-                                  1 -> newType
+                                  _ -> newType
                      ctx <- get
-                     head <- get
+                     hd <- get
                      kind <- get
                      decls <- get
-                     return $ GDataDecl doc dOrM ctx head kind decls nothing
+                     return $ GDataDecl doc dOrM ctx hd kind decls nothing
              1 -> do ctx <- get
-                     head <- get
+                     hd <- get
                      fdeps <- get
-                     return $ ClassDecl doc ctx head fdeps nothing
+                     return $ ClassDecl doc ctx hd fdeps nothing
              2 -> do ctx <- get
-                     head <- get
-                     return $ InstDecl doc ctx head nothing
+                     hd <- get
+                     return $ InstDecl doc ctx hd nothing
              3 -> do name <- get
                      ty <- get
                      return $ TypeSig doc [name] ty
-             _ -> do head <- get
+             _ -> do hd <- get
                      ty <- get
-                     return $ TypeDecl doc head ty
+                     return $ TypeDecl doc hd ty
 
 cxEmpty :: Documented Context
 cxEmpty = CxEmpty noDoc
@@ -215,7 +215,7 @@ instance Serialize (Documented Context) where
            return $ case as of
                       []  -> cxEmpty
                       [a] -> CxSingle noDoc a
-                      as  -> CxTuple noDoc as
+                      ass -> CxTuple noDoc ass
 
 instance Serialize (Documented Asst) where
   -- Possible values

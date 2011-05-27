@@ -1,5 +1,7 @@
 module Scion.Browser.Util where
 
+import qualified Data.Map as M
+import Distribution.Package hiding (Package)
 import Scion.Browser
 import System.Exit (ExitCode)
 import System.Process
@@ -22,9 +24,13 @@ executeCommand tmp exe args =
 -- |Converts a list of parsed packages into a complete database,
 -- and merges a list of errors.
 partitionPackages :: [(FilePath, Either ParseError (Documented Package))] -> ([Documented Package], [(FilePath, ParseError)])
-partitionPackages []                       = ([], [])
-partitionPackages ((fname, Left error):xs) = let (db, errors) = partitionPackages xs
-                                             in  (db, (fname, error):errors)
-partitionPackages ((fname, Right pkg):xs)  = let (db, errors) = partitionPackages xs
-                                             in  (pkg:db, errors)
+partitionPackages []                     = ([], [])
+partitionPackages ((fname, Left err):xs) = let (db, errors) = partitionPackages xs
+                                           in  (db, (fname, err):errors)
+partitionPackages ((_, Right pkg):xs)    = let (db, errors) = partitionPackages xs
+                                           in  (pkg:db, errors)
+
+-- |Converts a list of packages to a database
+pkgListToDb :: [Documented Package] -> Database
+pkgListToDb pkgs = M.fromList (map (\pkg -> (packageId pkg, pkg)) pkgs)
 

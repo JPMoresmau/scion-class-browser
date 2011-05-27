@@ -11,7 +11,10 @@ import Text.Parsec.Error (ParseError)
 import Text.ParserCombinators.Parsec.Error (newErrorMessage, Message(..))
 import Text.ParserCombinators.Parsec.Pos (newPos)
 
+baseDbUrl :: String
 baseDbUrl = "http://haskell.org/hoogle/base.txt"
+
+hoogleDbUrl :: String
 hoogleDbUrl = "http://hackage.haskell.org/packages/archive/00-hoogle.tar.gz"
 
 -- | Downloads the information for the entire Hackage database
@@ -21,7 +24,7 @@ saveHackageDatabase file = withTemporaryDirectory "scionXXXXXX" (saveHackageData
 
 saveHackageDatabaseWithTmp :: FilePath -> FilePath -> IO ()
 saveHackageDatabaseWithTmp file tmp = do (db, _) <- createHackageDatabase tmp
-                                         saveMDatabase file (dbToMDb db)
+                                         saveDatabase file db
 
 -- | Downloads the information for the entire Hackage database
 --   creating an in-memory database with it.
@@ -43,8 +46,8 @@ createHackageDatabase tmp =
      Just baseDownloaded <- downloadFileStrict baseDbUrl
      putStrLn "Base database successfully downloaded"
      case parseHoogleString "base.txt" baseDownloaded of
-       Right b -> return (b:pkgs, errors)
-       Left  e -> return (pkgs, ("base.txt", e):errors)
+       Right b -> return (pkgListToDb (b:pkgs), errors)
+       Left  e -> return (pkgListToDb pkgs, ("base.txt", e):errors)
 
 -- | Get the database from a set of Cabal packages.
 createCabalDatabase :: [(String, String)] -> IO (Database, [(String, ParseError)])
@@ -52,7 +55,8 @@ createCabalDatabase pkgs =
   do hooglePkgs <- mapM (\(n,v) -> do db <- getCabalHoogle n v
                                       return (n ++ "-" ++ v, db))
                         pkgs
-     return $ partitionPackages hooglePkgs
+     let (db, errors) = partitionPackages hooglePkgs
+     return (pkgListToDb db, errors)
 
 -- | Get the database from a Cabal package.
 getCabalHoogle :: String -> String -> IO (Either ParseError (Documented Package))
