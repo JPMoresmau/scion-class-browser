@@ -9,9 +9,9 @@ module Scion.Browser.Parser
 import Control.Monad
 import qualified Data.ByteString as BS
 import Data.Serialize
-import Data.Monoid (mconcat)
 import Scion.Browser
 import Scion.Browser.Parser.Internal (hoogleParser)
+import Scion.Browser.FileUtil
 import Scion.Browser.Util
 import System.Directory
 import System.FilePath ((</>), takeFileName)
@@ -58,7 +58,7 @@ parseDirectory dir tmpdir =
      let innerDirs = map (\d -> d </> "doc" </> "html") (concat vDirs)
      -- Parse directories recursively
      dPackages <- mapM (\dir -> parseDirectoryFiles dir tmpdir) innerDirs -- IO [...]
-     let dbs    = mconcat $ map fst dPackages
+     let dbs    = concat $ map fst dPackages
          errors = concat $ map snd dPackages
      return (dbs, errors)
 

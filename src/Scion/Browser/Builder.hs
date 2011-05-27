@@ -2,6 +2,7 @@ module Scion.Browser.Builder where
 
 import Scion.Browser
 import Scion.Browser.Parser
+import Scion.Browser.FileUtil
 import Scion.Browser.Util
 import System.Directory
 import System.Exit
@@ -20,25 +21,28 @@ saveHackageDatabase file = withTemporaryDirectory "scionXXXXXX" (saveHackageData
 
 saveHackageDatabaseWithTmp :: FilePath -> FilePath -> IO ()
 saveHackageDatabaseWithTmp file tmp = do (db, _) <- createHackageDatabase tmp
-                                         saveDatabase file db
+                                         saveMDatabase file (dbToMDb db)
 
 -- | Downloads the information for the entire Hackage database
 --   creating an in-memory database with it.
 --   It needs a temporary directory to work on.
 createHackageDatabase :: FilePath -> IO (Database, [(FilePath, ParseError)])
 createHackageDatabase tmp =
-  do let hoogleDbFile = tmp </> "hoogle.tar.gz"
-         hoogleDbDir  = tmp </> "hoogle-db"
-         baseDbFile   = tmp </> "base.txt"
+  do let hoogleDbDir  = tmp </> "hoogle-db"
          tmpDir       = tmp </> "tmp-db"
-     executeCommand tmp "wget" [hoogleDbUrl, "-O", hoogleDbFile]
+     -- Parse Hoogle database
      createDirectoryIfMissing True hoogleDbDir
-     executeCommand tmp "tar" ["-x", "-z", "-f", hoogleDbFile, "-C", hoogleDbDir]
+     putStrLn "Started downloading Hoogle database"
+     Just hoogleDownloaded <- downloadFileLazy hoogleDbUrl
+     putStrLn "Uncompressing Hoogle database"
+     unTarGzip hoogleDownloaded hoogleDbDir
+     putStrLn $ "Hoogle database is now in " ++ hoogleDbDir
      createDirectoryIfMissing True tmpDir
      (pkgs, errors) <- parseDirectory hoogleDbDir tmpDir
-     executeCommand tmp "wget" [baseDbUrl, "-O", baseDbFile]
-     basePkg <- parseHoogleFile baseDbFile
-     case basePkg of
+     -- Parse base package
+     Just baseDownloaded <- downloadFileStrict baseDbUrl
+     putStrLn "Base database successfully downloaded"
+     case parseHoogleString "base.txt" baseDownloaded of
        Right b -> return (b:pkgs, errors)
        Left  e -> return (pkgs, ("base.txt", e):errors)
 
