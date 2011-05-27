@@ -26,9 +26,7 @@ import Text.ParserCombinators.Parsec.Pos (newPos)
 -- | Parses the contents of a string containing the 
 --   Hoogle file contents.
 parseHoogleString :: String -> BS.ByteString -> Either ParseError (Documented Package)
-parseHoogleString name contents = case runP hoogleParser () name contents of
-                                    Left e    -> Left e
-                                    Right pkg -> Right pkg
+parseHoogleString name contents = runP hoogleParser () name contents
 
 -- | Parses a file in Hoogle documentation format, returning
 --   the documentation of the entire package, or the corresponding
@@ -77,6 +75,7 @@ parseDirectoryFiles dir tmpdir =
      fPackages <- mapM (\fname -> do putChar '.'
                                      hFlush stdout
                                      p <- parseHoogleFile fname
+                                     -- return (fname, p)
                                      case p of
                                        Left _ -> return (fname, p)
                                        Right pkg -> do let tmpFile = tmpdir </> takeFileName fname
@@ -86,7 +85,7 @@ parseDirectoryFiles dir tmpdir =
                                                               \hnd -> do s <- BS.hGetContents hnd
                                                                          return s
                                                        let Right (pkg' :: Documented Package) = decode s
-                                                       return (fname, Right pkg'))
+                                                       return (fname, Right pkg') )
                        files
      return $ partitionPackages fPackages
 

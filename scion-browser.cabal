@@ -13,4 +13,5 @@ executable hoogle-parsec
                    Cabal, haskell-src-exts,
                    process, unix,
                    deepseq
+  ghc-options:     -rtsopts
 

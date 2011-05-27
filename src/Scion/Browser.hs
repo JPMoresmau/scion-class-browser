@@ -2,9 +2,11 @@
 
 module Scion.Browser where
 
+import Control.DeepSeq
 import Control.Monad (liftM)
 import Data.Serialize
 import Data.DeriveTH
+import qualified Data.ByteString as BS
 import qualified Data.Map as M
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as E
@@ -12,6 +14,7 @@ import Distribution.Package hiding (Package)
 import qualified Distribution.Package as P
 import Distribution.Version
 import Language.Haskell.Exts.Annotated.Syntax
+import System.IO
 
 -- |Documentation for an item.
 -- Now it is simply a Text element.
@@ -37,6 +40,17 @@ instance P.Package (Package l) where
 -- |A Database saves a list of packages. 
 type Database = [Documented Package]
 
+
+saveDatabase :: FilePath -> Database -> IO ()
+saveDatabase fpath db  = withFile fpath WriteMode $
+                           \hnd -> BS.hPut hnd (encode db)
+
+loadDatabase :: FilePath -> IO (Maybe Database)
+loadDatabase fpath = withFile fpath ReadMode $
+                       \hnd -> do s <- BS.hGetContents hnd
+                                  return $ case decode s of
+                                             Left _  -> Nothing
+                                             Right p -> p `deepseq` Just p
 
 -- Binary instances for different elements
 
@@ -119,4 +133,82 @@ $( derive makeSerialize ''Rule )
 $( derive makeSerialize ''RuleVar )
 $( derive makeSerialize ''Activation )
 $( derive makeSerialize ''Annotation )
+
+-- for DeepSeq
+
+$( derive makeNFData ''Doc )
+$( derive makeNFData ''Package )
+
+-- derive Binary instances for Cabal packages
+$( derive makeNFData ''PackageIdentifier )
+$( derive makeNFData ''PackageName )
+$( derive makeNFData ''Version )
+
+-- derive Binary instances for haskell-src-exts
+$( derive makeNFData ''Module )
+$( derive makeNFData ''ModuleHead )
+$( derive makeNFData ''WarningText )
+$( derive makeNFData ''ExportSpecList )
+$( derive makeNFData ''ExportSpec )
+$( derive makeNFData ''ImportDecl )
+$( derive makeNFData ''ImportSpecList )
+$( derive makeNFData ''ImportSpec )
+$( derive makeNFData ''Assoc )
+$( derive makeNFData ''Decl )
+$( derive makeNFData ''DeclHead )
+$( derive makeNFData ''InstHead )
+$( derive makeNFData ''Binds )
+$( derive makeNFData ''IPBind )
+$( derive makeNFData ''ClassDecl )
+$( derive makeNFData ''InstDecl )
+$( derive makeNFData ''Deriving )
+$( derive makeNFData ''DataOrNew )
+$( derive makeNFData ''ConDecl )
+$( derive makeNFData ''FieldDecl )
+$( derive makeNFData ''QualConDecl )
+$( derive makeNFData ''GadtDecl )
+$( derive makeNFData ''BangType )
+$( derive makeNFData ''Match )
+$( derive makeNFData ''Rhs )
+$( derive makeNFData ''GuardedRhs )
+$( derive makeNFData ''Context )
+$( derive makeNFData ''FunDep )
+$( derive makeNFData ''Asst )
+$( derive makeNFData ''Type )
+$( derive makeNFData ''Boxed )
+$( derive makeNFData ''Kind )
+$( derive makeNFData ''TyVarBind )
+$( derive makeNFData ''Exp )
+$( derive makeNFData ''Stmt )
+$( derive makeNFData ''QualStmt )
+$( derive makeNFData ''FieldUpdate )
+$( derive makeNFData ''Alt )
+$( derive makeNFData ''GuardedAlts )
+$( derive makeNFData ''GuardedAlt )
+$( derive makeNFData ''XAttr )
+$( derive makeNFData ''Pat )
+$( derive makeNFData ''PatField )
+$( derive makeNFData ''PXAttr )
+$( derive makeNFData ''RPat )
+$( derive makeNFData ''RPatOp )
+$( derive makeNFData ''Literal )
+$( derive makeNFData ''ModuleName )
+$( derive makeNFData ''QName )
+$( derive makeNFData ''Name )
+$( derive makeNFData ''QOp )
+$( derive makeNFData ''Op )
+$( derive makeNFData ''SpecialCon )
+$( derive makeNFData ''CName )
+$( derive makeNFData ''IPName )
+$( derive makeNFData ''XName )
+$( derive makeNFData ''Bracket )
+$( derive makeNFData ''Splice )
+$( derive makeNFData ''Safety )
+$( derive makeNFData ''CallConv )
+$( derive makeNFData ''ModulePragma )
+$( derive makeNFData ''Tool )
+$( derive makeNFData ''Rule )
+$( derive makeNFData ''RuleVar )
+$( derive makeNFData ''Activation )
+$( derive makeNFData ''Annotation )
 

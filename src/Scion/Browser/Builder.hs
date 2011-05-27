@@ -51,10 +51,10 @@ createCabalDatabase pkgs =
      return $ partitionPackages hooglePkgs
 
 -- | Get the database from a Cabal package.
-getCabalHoogle :: String -> String -> IO (Either ParseError (Doc Package))
+getCabalHoogle :: String -> String -> IO (Either ParseError (Documented Package))
 getCabalHoogle pkg version = do withTemporaryDirectory "scionXXXXXX" (getCabalHoogleWithTmp pkg version)
 
-getCabalHoogleWithTmp :: String -> String -> FilePath -> IO (Either ParseError (Doc Package))
+getCabalHoogleWithTmp :: String -> String -> FilePath -> IO (Either ParseError (Documented Package))
 getCabalHoogleWithTmp pkg version tmp = 
   do let pkgV = pkg ++ "-" ++ version
      code <- executeCommand tmp "cabal" ["unpack", pkg]
