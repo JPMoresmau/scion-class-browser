@@ -14,9 +14,10 @@ main = do -- 1. For creating the database
           maybeDb <- loadMDatabase "hackage.db"
           case maybeDb of
             Nothing -> putStrLn "Error reading database"
-            Just db -> mapM_ putStrLn 
-                         (map (show . packageId . fst)
-                              (M.toAscList db))
+            Just db -> mapM_ 
+                         (\(Package doc id _) -> do putStrLn $ show id
+                                                    putStrLn $ show doc) 
+                         (map snd (M.toAscList db))
           putStrLn "Press a key to finish"
           getChar
           putStrLn "Finished"

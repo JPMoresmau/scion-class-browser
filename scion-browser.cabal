@@ -12,6 +12,7 @@ executable hoogle-parsec
                    directory, filepath,
                    Cabal, haskell-src-exts,
                    process, unix,
-                   tar, zlib, HTTP
+                   tar, zlib, HTTP,
+                   deepseq
   ghc-options:     -rtsopts
 

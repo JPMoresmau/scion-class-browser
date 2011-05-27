@@ -15,6 +15,10 @@ import Distribution.Version
 import Language.Haskell.Exts.Annotated.Syntax
 import System.IO
 
+import Control.DeepSeq
+import Data.IORef
+import System.IO.Unsafe
+
 -- |Documentation for an item.
 -- Now it is simply a Text element.
 data Doc = NoDoc
@@ -50,7 +54,7 @@ loadDatabase fpath = withFile fpath ReadMode $
                        \hnd -> do s <- BS.hGetContents hnd
                                   return $ case decode s of
                                              Left _  -> Nothing
-                                             Right p -> Just p
+                                             Right p -> p `deepseq` Just p
 
 dbToMDb :: Database -> MDatabase
 dbToMDb db = M.fromList (map (\pkg -> (packageId pkg, pkg)) db)
@@ -64,7 +68,7 @@ loadMDatabase fpath = withFile fpath ReadMode $
                         \hnd -> do s <- BS.hGetContents hnd
                                    return $ case decode s of
                                               Left _  -> Nothing
-                                              Right p -> Just p
+                                              Right p -> p `deepseq` Just p
 
 -- Binary instances for different elements
 
@@ -79,8 +83,78 @@ $( derive makeSerialize ''Package )
 $( derive makeSerialize ''PackageIdentifier )
 $( derive makeSerialize ''PackageName )
 $( derive makeSerialize ''Version )
-  
--- derive Binary instances for haskell-src-exts
+
+-- Lookup table (yes, it used unsafePerformIO)
+
+lookupNameTable :: IORef (M.Map String (Documented Name))
+lookupNameTable = unsafePerformIO $ newIORef M.empty
+
+getNameInLookupTable :: String -> Bool {- is symbol? -} -> Documented Name
+getNameInLookupTable name isSymbol = 
+  unsafePerformIO $ do table <- readIORef lookupNameTable
+                       case M.lookup name table of
+                         Just v  -> return v
+                         Nothing -> do let element = if isSymbol 
+                                                        then (Symbol noDoc name)
+                                                        else (Ident noDoc name)
+                                       modifyIORef lookupNameTable (M.insert name element)
+                                       return element
+
+getNameString :: Documented Name -> String
+getNameString (Ident _ s)  = s
+getNameString (Symbol _ s) = "(" ++ s ++ ")"
+
+lookupQNameTable :: IORef (M.Map String (Documented QName))
+lookupQNameTable = unsafePerformIO $ newIORef M.empty
+
+getQNameInLookupTable :: Documented QName -> Documented QName
+getQNameInLookupTable qname = 
+  unsafePerformIO $ do table <- readIORef lookupQNameTable
+                       let rname = getQNameString qname
+                       case M.lookup rname table of
+                         Just v  -> return v
+                         Nothing -> do modifyIORef lookupQNameTable (M.insert rname qname)
+                                       return qname
+
+getQNameString :: Documented QName -> String
+getQNameString (Qual _ (ModuleName _ mname) ename) = mname ++ "." ++ getNameString ename
+getQNameString (UnQual _ ename)                    = getNameString ename
+getQNameString (Special _ (UnitCon _))             = "()"
+getQNameString (Special _ (ListCon _))             = "[]"
+getQNameString (Special _ (FunCon _))              = "(->)"
+getQNameString (Special _ (TupleCon _ box n))      = case box of
+                                                       Boxed   -> "(" ++ replicate (n-1) ',' ++ ")"
+                                                       Unboxed -> "(#" ++ replicate (n-1) ',' ++ "#)"
+getQNameString (Special _ (Cons _))                = "(:)"
+getQNameString (Special _ (UnboxedSingleCon _))    = "(# #)"
+
+lookupTyVarTable :: IORef (M.Map String (Documented Type))
+lookupTyVarTable = unsafePerformIO $ newIORef M.empty
+
+getTyVarInLookupTable :: Documented Name -> Documented Type
+getTyVarInLookupTable name = 
+  unsafePerformIO $ do table <- readIORef lookupTyVarTable
+                       let rname = getNameString name
+                       case M.lookup rname table of
+                         Just v  -> return v
+                         Nothing -> do let element = TyVar noDoc name 
+                                       modifyIORef lookupTyVarTable (M.insert rname element)
+                                       return element
+
+lookupTyConTable :: IORef (M.Map String (Documented Type))
+lookupTyConTable = unsafePerformIO $ newIORef M.empty
+
+getTyConInLookupTable :: Documented QName -> Documented Type
+getTyConInLookupTable name = 
+  unsafePerformIO $ do table <- readIORef lookupTyConTable
+                       let rname = getQNameString name
+                       case M.lookup rname table of
+                         Just v  -> return v
+                         Nothing -> do let element = TyCon noDoc name 
+                                       modifyIORef lookupTyConTable (M.insert rname element)
+                                       return element
+
+-- Binary instances for haskell-src-exts
 
 noDoc :: Doc
 noDoc = NoDoc
@@ -373,9 +447,9 @@ instance Serialize (Documented Type) where
                      ty2 <- get
                      return $ TyApp noDoc ty1 ty2
              5 -> do name <- get
-                     return $ TyVar noDoc name
+                     return $ getTyVarInLookupTable name
              6 -> do qname <- get
-                     return $ TyCon noDoc qname
+                     return $ getTyConInLookupTable qname
              7 -> do ty <- get
                      return $ TyParen noDoc ty
              8 -> do ty1 <- get
@@ -413,9 +487,8 @@ instance Serialize (Documented Name) where
                         put s
   get = do tag <- getWord8
            s <- get
-           case tag of
-             0 -> return $ Ident noDoc s
-             _ -> return $ Symbol noDoc s
+           let isSymbol = tag /= 0
+           return $ getNameInLookupTable s isSymbol
 
 instance Serialize (Documented QName) where
   -- Possible values
@@ -433,11 +506,11 @@ instance Serialize (Documented QName) where
            case tag of
              0 -> do mn <- get
                      name <- get
-                     return $ Qual noDoc (ModuleName noDoc mn) name
+                     return $ getQNameInLookupTable $ Qual noDoc (ModuleName noDoc mn) name
              1 -> do name <- get
-                     return $ UnQual noDoc name
+                     return $ getQNameInLookupTable $ UnQual noDoc name
              _ -> do scon <- get
-                     return $ Special noDoc scon
+                     return $ getQNameInLookupTable $ Special noDoc scon
 
 instance Serialize (Documented IPName) where
   -- Possible values
@@ -494,4 +567,82 @@ instance Serialize (Documented SpecialCon) where
              _ -> do boxed <- get
                      n <- get
                      return $ TupleCon noDoc boxed n
+
+-- for DeepSeq
+
+$( derive makeNFData ''Doc )
+$( derive makeNFData ''Package )
+
+-- derive Binary instances for Cabal packages
+$( derive makeNFData ''PackageIdentifier )
+$( derive makeNFData ''PackageName )
+$( derive makeNFData ''Version )
+
+-- derive Binary instances for haskell-src-exts
+$( derive makeNFData ''Module )
+$( derive makeNFData ''ModuleHead )
+$( derive makeNFData ''WarningText )
+$( derive makeNFData ''ExportSpecList )
+$( derive makeNFData ''ExportSpec )
+$( derive makeNFData ''ImportDecl )
+$( derive makeNFData ''ImportSpecList )
+$( derive makeNFData ''ImportSpec )
+$( derive makeNFData ''Assoc )
+$( derive makeNFData ''Decl )
+$( derive makeNFData ''DeclHead )
+$( derive makeNFData ''InstHead )
+$( derive makeNFData ''Binds )
+$( derive makeNFData ''IPBind )
+$( derive makeNFData ''ClassDecl )
+$( derive makeNFData ''InstDecl )
+$( derive makeNFData ''Deriving )
+$( derive makeNFData ''DataOrNew )
+$( derive makeNFData ''ConDecl )
+$( derive makeNFData ''FieldDecl )
+$( derive makeNFData ''QualConDecl )
+$( derive makeNFData ''GadtDecl )
+$( derive makeNFData ''BangType )
+$( derive makeNFData ''Match )
+$( derive makeNFData ''Rhs )
+$( derive makeNFData ''GuardedRhs )
+$( derive makeNFData ''Context )
+$( derive makeNFData ''FunDep )
+$( derive makeNFData ''Asst )
+$( derive makeNFData ''Type )
+$( derive makeNFData ''Boxed )
+$( derive makeNFData ''Kind )
+$( derive makeNFData ''TyVarBind )
+$( derive makeNFData ''Exp )
+$( derive makeNFData ''Stmt )
+$( derive makeNFData ''QualStmt )
+$( derive makeNFData ''FieldUpdate )
+$( derive makeNFData ''Alt )
+$( derive makeNFData ''GuardedAlts )
+$( derive makeNFData ''GuardedAlt )
+$( derive makeNFData ''XAttr )
+$( derive makeNFData ''Pat )
+$( derive makeNFData ''PatField )
+$( derive makeNFData ''PXAttr )
+$( derive makeNFData ''RPat )
+$( derive makeNFData ''RPatOp )
+$( derive makeNFData ''Literal )
+$( derive makeNFData ''ModuleName )
+$( derive makeNFData ''QName )
+$( derive makeNFData ''Name )
+$( derive makeNFData ''QOp )
+$( derive makeNFData ''Op )
+$( derive makeNFData ''SpecialCon )
+$( derive makeNFData ''CName )
+$( derive makeNFData ''IPName )
+$( derive makeNFData ''XName )
+$( derive makeNFData ''Bracket )
+$( derive makeNFData ''Splice )
+$( derive makeNFData ''Safety )
+$( derive makeNFData ''CallConv )
+$( derive makeNFData ''ModulePragma )
+$( derive makeNFData ''Tool )
+$( derive makeNFData ''Rule )
+$( derive makeNFData ''RuleVar )
+$( derive makeNFData ''Activation )
+$( derive makeNFData ''Annotation )
 
