@@ -6,13 +6,32 @@ build-type:     Simple
 executable hoogle-parsec
   hs-source-dirs:  src
   main-is:         Main.hs
-  build-depends:   base, text, containers,
-                   parsec >= 3,
-                   cereal, derive, bytestring,
-                   directory, filepath,
-                   Cabal, haskell-src-exts,
-                   process, unix,
-                   tar, zlib, HTTP,
-                   deepseq
-  ghc-options:     -rtsopts
+  build-depends:   
+    base             == 4.*,
+    text             == 0.11.*,
+    parsec           >= 3 && < 4,
+    cereal           == 0.3.*, 
+    derive           >= 2.5 && < 3,
+    Cabal            >= 0.10, 
+    haskell-src-exts >= 1.10 && < 2,
+    process          >= 1 && < 2,
+    unix             >= 2 && < 3,
+    tar              == 0.3.*,
+    zlib             == 0.5.*,
+    HTTP             >= 4000 && < 5000,
+    deepseq          >= 1.1 && < 2
+  
+  if impl(ghc >= 7.0)
+    build-depends:
+      containers   >= 0.2 && < 0.5,
+      directory    == 1.1.*,
+      filepath     == 1.2.*,
+      bytestring
+  else
+    build-depends:
+      containers   >= 0.2 && < 0.4,
+      directory    == 1.0.*,
+      filepath     == 1.1.*
+    
+  ghc-options: -rtsopts
 
