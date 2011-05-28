@@ -1,5 +1,10 @@
 module Scion.Browser.Builder where
 
+import Data.List (intercalate, (\\), nub)
+import qualified Data.Map as M
+import Distribution.InstalledPackageInfo
+import Distribution.Package hiding (Package)
+import Distribution.Version
 import Scion.Browser
 import Scion.Browser.Parser
 import Scion.Browser.FileUtil
@@ -49,22 +54,33 @@ createHackageDatabase tmp =
        Right b -> return (pkgListToDb (b:pkgs), errors)
        Left  e -> return (pkgListToDb pkgs, ("base.txt", e):errors)
 
+-- | Updates a database with changes in the installed package base.
+updateDatabase :: Database -> [InstalledPackageInfo] -> IO Database
+updateDatabase oldDb pkgInfo = do let dbList        = nub $ map fst $ M.toList oldDb
+                                      installedList = nub $ map sourcePackageId pkgInfo
+                                      toRemove      = dbList \\ installedList
+                                      toAdd         = installedList \\ dbList
+                                      filteredDb    = foldr (\pid db -> M.delete pid db) oldDb toRemove
+                                  (addedDb, _) <- createCabalDatabase toAdd
+                                  return $ M.union filteredDb addedDb
+
 -- | Get the database from a set of Cabal packages.
-createCabalDatabase :: [(String, String)] -> IO (Database, [(String, ParseError)])
+createCabalDatabase :: [PackageIdentifier] -> IO (Database, [(String, ParseError)])
 createCabalDatabase pkgs =
-  do hooglePkgs <- mapM (\(n,v) -> do db <- getCabalHoogle n v
-                                      return (n ++ "-" ++ v, db))
+  do hooglePkgs <- mapM (\pid -> do db <- getCabalHoogle pid
+                                    return (pkgString pid, db))
                         pkgs
      let (db, errors) = partitionPackages hooglePkgs
      return (pkgListToDb db, errors)
 
 -- | Get the database from a Cabal package.
-getCabalHoogle :: String -> String -> IO (Either ParseError (Documented Package))
-getCabalHoogle pkg version = do withTemporaryDirectory "scionXXXXXX" (getCabalHoogleWithTmp pkg version)
+getCabalHoogle :: PackageIdentifier -> IO (Either ParseError (Documented Package))
+getCabalHoogle pid = do withTemporaryDirectory "scionXXXXXX" (getCabalHoogleWithTmp pid)
 
-getCabalHoogleWithTmp :: String -> String -> FilePath -> IO (Either ParseError (Documented Package))
-getCabalHoogleWithTmp pkg version tmp = 
-  do let pkgV = pkg ++ "-" ++ version
+getCabalHoogleWithTmp :: PackageIdentifier -> FilePath -> IO (Either ParseError (Documented Package))
+getCabalHoogleWithTmp pid tmp = 
+  do let pkgV = pkgString pid
+         (PackageName pkg) = pkgName pid
      code <- executeCommand tmp "cabal" ["unpack", pkg]
      case code of
        ExitFailure _ -> return $ Left (newErrorMessage (Message "package not found")
@@ -76,4 +92,7 @@ getCabalHoogleWithTmp pkg version tmp =
                  executeCommand pkgdir "cabal" ["haddock", "--hoogle"]
                  let hoogleFile = pkgdir </> "dist" </> "doc" </> "html" </> pkg </> (pkg ++ ".txt")
                  parseHoogleFile hoogleFile
+
+pkgString :: PackageIdentifier -> String
+pkgString (PackageIdentifier (PackageName name) (Version branch _)) = name ++ "-" ++ (intercalate "." $ map show branch)
 

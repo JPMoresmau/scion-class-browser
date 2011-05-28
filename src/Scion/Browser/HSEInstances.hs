@@ -123,7 +123,7 @@ instance Serialize (Documented Module) where
   get = do doc <- get
            hd <- get
            decls <- get
-           return $ Module doc (Just hd) [] [] decls
+           return $ decls `deepseq` Module doc (Just hd) [] [] decls
 
 instance Serialize (Documented ModuleHead) where
   -- Only possible value
