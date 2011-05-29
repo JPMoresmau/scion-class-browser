@@ -1,4 +1,10 @@
-module Scion.Browser.Builder where
+module Scion.Browser.Build
+( saveHackageDatabase
+, createHackageDatabase
+, updateDatabase
+, createCabalDatabase
+, getCabalHoogle
+) where
 
 import Data.List (intercalate, (\\), nub)
 import qualified Data.Map as M

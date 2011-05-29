@@ -28,12 +28,35 @@ docFromString s = Doc (T.pack s)
 -- |A documented item.
 type Documented a = a Doc
 
+-- ----------------------------------
+-- Instances for Serialize and NFData
+-- for a bunch of datatypes
+-- ----------------------------------
+
 instance Serialize T.Text where
   put = put . E.encodeUtf8
   get = liftM E.decodeUtf8 get
   
 $( derive makeSerialize ''Doc )
 $( derive makeNFData ''Doc )
+
+-- |Gets the name inside a Name constructor.
+getNameString :: Name l -> String
+getNameString (Ident _ s)  = s
+getNameString (Symbol _ s) = "(" ++ s ++ ")"
+
+-- |Gets the qualified name as a string.
+getQNameString :: QName l -> String
+getQNameString (Qual _ (ModuleName _ mname) ename) = mname ++ "." ++ getNameString ename
+getQNameString (UnQual _ ename)                    = getNameString ename
+getQNameString (Special _ (UnitCon _))             = "()"
+getQNameString (Special _ (ListCon _))             = "[]"
+getQNameString (Special _ (FunCon _))              = "(->)"
+getQNameString (Special _ (TupleCon _ box n))      = case box of
+                                                       Boxed   -> "(" ++ replicate (n-1) ',' ++ ")"
+                                                       Unboxed -> "(#" ++ replicate (n-1) ',' ++ "#)"
+getQNameString (Special _ (Cons _))                = "(:)"
+getQNameString (Special _ (UnboxedSingleCon _))    = "(# #)"
 
 -- Lookup table (yes, it used unsafePerformIO)
 
@@ -51,10 +74,6 @@ getNameInLookupTable name isSymbol =
                                        modifyIORef lookupNameTable (M.insert name element)
                                        return element
 
-getNameString :: Documented Name -> String
-getNameString (Ident _ s)  = s
-getNameString (Symbol _ s) = "(" ++ s ++ ")"
-
 lookupQNameTable :: IORef (M.Map String (Documented QName))
 lookupQNameTable = unsafePerformIO $ newIORef M.empty
 
@@ -66,18 +85,6 @@ getQNameInLookupTable qname =
                          Just v  -> return v
                          Nothing -> do modifyIORef lookupQNameTable (M.insert rname qname)
                                        return qname
-
-getQNameString :: Documented QName -> String
-getQNameString (Qual _ (ModuleName _ mname) ename) = mname ++ "." ++ getNameString ename
-getQNameString (UnQual _ ename)                    = getNameString ename
-getQNameString (Special _ (UnitCon _))             = "()"
-getQNameString (Special _ (ListCon _))             = "[]"
-getQNameString (Special _ (FunCon _))              = "(->)"
-getQNameString (Special _ (TupleCon _ box n))      = case box of
-                                                       Boxed   -> "(" ++ replicate (n-1) ',' ++ ")"
-                                                       Unboxed -> "(#" ++ replicate (n-1) ',' ++ "#)"
-getQNameString (Special _ (Cons _))                = "(:)"
-getQNameString (Special _ (UnboxedSingleCon _))    = "(# #)"
 
 lookupTyVarTable :: IORef (M.Map String (Documented Type))
 lookupTyVarTable = unsafePerformIO $ newIORef M.empty

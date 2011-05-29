@@ -3,8 +3,7 @@
 module Main where
 
 import Scion.Browser
-import Scion.Browser.Builder
-import Distribution.Package hiding (Package)
+import Scion.Browser.Query
 import qualified Data.Map as M
 
 main :: IO ()
@@ -15,8 +14,8 @@ main = do -- 1. For creating the database
           case maybeDb of
             Nothing -> putStrLn "Error reading database"
             Just db -> mapM_ 
-                         (\(Package doc id _) -> do putStrLn $ show id
-                                                    putStrLn $ show doc) 
+                         (\(Package doc pid _) -> do putStrLn $ show pid
+                                                     putStrLn $ show doc) 
                          (map snd (M.toAscList db))
           putStrLn "Press a key to finish"
           getChar
