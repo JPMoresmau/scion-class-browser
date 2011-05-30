@@ -47,6 +47,7 @@ getNameString (Symbol _ s) = "(" ++ s ++ ")"
 
 -- |Gets the qualified name as a string.
 getQNameString :: QName l -> String
+getQNameString (Qual _ (ModuleName _ "")    ename) = getNameString ename
 getQNameString (Qual _ (ModuleName _ mname) ename) = mname ++ "." ++ getNameString ename
 getQNameString (UnQual _ ename)                    = getNameString ename
 getQNameString (Special _ (UnitCon _))             = "()"
