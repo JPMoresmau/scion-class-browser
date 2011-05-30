@@ -25,15 +25,15 @@ executable hoogle-parsec
   
   if impl(ghc >= 7.0)
     build-depends:
-      containers   >= 0.2 && < 0.5,
-      directory    == 1.1.*,
-      filepath     == 1.2.*,
+      containers     >= 0.2 && < 0.5,
+      directory      == 1.1.*,
+      filepath       == 1.2.*,
       bytestring
   else
     build-depends:
-      containers   >= 0.2 && < 0.4,
-      directory    == 1.0.*,
-      filepath     == 1.1.*
+      containers     >= 0.2 && < 0.4,
+      directory      == 1.0.*,
+      filepath       == 1.1.*
     
   ghc-options: -rtsopts -Wall -fno-warn-unused-do-bind -fno-warn-orphans
 
