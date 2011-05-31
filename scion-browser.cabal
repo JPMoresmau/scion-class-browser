@@ -48,7 +48,7 @@ library
     
   ghc-options: -rtsopts -Wall -fno-warn-unused-do-bind -fno-warn-orphans
 
-executable hoogle-parsec
+executable scion-browser
   hs-source-dirs:  src
   main-is:         Main.hs
   build-depends:
