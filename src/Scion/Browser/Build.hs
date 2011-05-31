@@ -6,11 +6,11 @@ module Scion.Browser.Build
 , getCabalHoogle
 ) where
 
-import Data.List (intercalate, (\\), nub)
+import Data.List ((\\), nub)
 import qualified Data.Map as M
+import Data.Version (showVersion)
 import Distribution.InstalledPackageInfo
 import Distribution.Package hiding (Package)
-import Distribution.Version
 import Scion.Browser
 import Scion.Browser.Parser
 import Scion.Browser.FileUtil
@@ -62,13 +62,19 @@ createHackageDatabase tmp =
 
 -- | Updates a database with changes in the installed package base.
 updateDatabase :: Database -> [InstalledPackageInfo] -> IO Database
-updateDatabase oldDb pkgInfo = do let dbList        = nub $ map fst $ M.toList oldDb
+updateDatabase oldDb pkgInfo = do let dbList        = removeSmallVersions $ nub $ map fst $ M.toList oldDb
                                       installedList = nub $ map sourcePackageId pkgInfo
                                       toRemove      = dbList \\ installedList
                                       toAdd         = installedList \\ dbList
                                       filteredDb    = foldr (\pid db -> M.delete pid db) oldDb toRemove
                                   (addedDb, _) <- createCabalDatabase toAdd
                                   return $ M.union filteredDb addedDb
+
+removeSmallVersions :: [PackageIdentifier] -> [PackageIdentifier]
+removeSmallVersions pids = filter
+  (not . (\(PackageIdentifier name version) -> 
+             any (\(PackageIdentifier name' version') -> name' == name && version' > version) pids))
+  pids
 
 -- | Get the database from a set of Cabal packages.
 createCabalDatabase :: [PackageIdentifier] -> IO (Database, [(String, ParseError)])
@@ -87,7 +93,8 @@ getCabalHoogleWithTmp :: PackageIdentifier -> FilePath -> IO (Either ParseError 
 getCabalHoogleWithTmp pid tmp = 
   do let pkgV = pkgString pid
          (PackageName pkg) = pkgName pid
-     code <- executeCommand tmp "cabal" ["unpack", pkg]
+     putStrLn $ "Parsing " ++ pkgV
+     code <- executeCommand tmp "cabal" ["unpack", pkgV]
      case code of
        ExitFailure _ -> return $ Left (newErrorMessage (Message "package not found")
                                                        (newPos pkgV 0 0))
@@ -100,5 +107,5 @@ getCabalHoogleWithTmp pid tmp =
                  parseHoogleFile hoogleFile
 
 pkgString :: PackageIdentifier -> String
-pkgString (PackageIdentifier (PackageName name) (Version branch _)) = name ++ "-" ++ (intercalate "." $ map show branch)
+pkgString (PackageIdentifier (PackageName name) version) = name ++ "-" ++ showVersion version
 

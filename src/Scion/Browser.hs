@@ -12,11 +12,9 @@ module Scion.Browser
 , getChildren
 , getChild
 , module Scion.Browser.HSEInstances
-, module Scion.Browser.HSEJsonInstances
 ) where
 
 import Control.DeepSeq
-import Data.Aeson hiding (encode)
 import qualified Data.ByteString as BS
 import Data.DeriveTH
 import Data.List (find)
@@ -27,9 +25,8 @@ import Data.Version (showVersion)
 import Distribution.Package hiding (Package)
 import qualified Distribution.Package as P
 import Distribution.Version
-import Language.Haskell.Exts.Annotated.Syntax hiding (String)
+import Language.Haskell.Exts.Annotated.Syntax
 import Scion.Browser.HSEInstances
-import Scion.Browser.HSEJsonInstances
 import System.IO
 
 -- |A package.
@@ -103,13 +100,4 @@ $( derive makeNFData ''Package )
 $( derive makeNFData ''PackageIdentifier )
 $( derive makeNFData ''PackageName )
 $( derive makeNFData ''Version )
-
-
-instance ToJSON PackageIdentifier where
-  toJSON (PackageIdentifier (PackageName name) version) = object [ T.pack "name"    .= name
-                                                                 , T.pack "version" .= version
-                                                                 ]
-
-instance ToJSON Version where
-  toJSON = String . T.pack . showVersion
 

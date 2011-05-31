@@ -1,12 +1,37 @@
 {-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
 
-module Scion.Browser.HSEJsonInstances where
+module Scion.Browser.Json.Instances where
 
+import Control.Applicative
+import Control.Monad
 import Data.Aeson
+import Data.Version
 import qualified Data.Text as T
-import Scion.Browser.HSEInstances
+import Distribution.Package hiding (Package)
+import Scion.Browser
 import Language.Haskell.Exts.Annotated.Syntax hiding (String)
 import Language.Haskell.Exts.Pretty
+import Text.ParserCombinators.ReadP
+
+instance ToJSON (Documented Package) where
+  toJSON (Package doc pid _) = object [ T.pack "id"  .= pid
+                                      , T.pack "doc" .= doc
+                                      ]
+
+instance ToJSON PackageIdentifier where
+  toJSON (PackageIdentifier (PackageName name) version) = object [ T.pack "name"    .= name
+                                                                 , T.pack "version" .= version
+                                                                 ]
+instance FromJSON PackageIdentifier where
+  parseJSON (Object v) = PackageIdentifier <$> (PackageName <$> v .: T.pack "name")
+                                           <*> v .: T.pack "version"
+  parseJSON _          = mzero
+
+instance ToJSON Version where
+  toJSON = String . T.pack . showVersion
+
+instance FromJSON Version where
+  parseJSON version = (fst . head . readP_to_S parseVersion . T.unpack) <$> parseJSON version
 
 instance ToJSON Doc where
   toJSON (NoDoc)   = Null

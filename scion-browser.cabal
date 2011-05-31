@@ -7,6 +7,7 @@ library
   hs-source-dirs:  src
   build-depends:   
     base             == 4.*,
+    mtl              >= 2,
     text             == 0.11.*,
     parsec           >= 3 && < 4,
     cereal           == 0.3.*, 
@@ -20,19 +21,25 @@ library
     HTTP             >= 4000 && < 5000,
     deepseq          >= 1.1 && < 2,
     MissingH         == 1.*,
-    aeson            >= 0.3.2
+    aeson            >= 0.3.2,
+    -- For Scion.packages (provisional)
+    ghc-paths        == 0.1.*
   
   if impl(ghc >= 7.0)
     build-depends:
       containers     >= 0.2 && < 0.5,
       directory      == 1.1.*,
       filepath       == 1.2.*,
-      bytestring
+      bytestring,
+      -- For Scion.Packages (provisional)
+      ghc            >= 7
   else
     build-depends:
       containers     >= 0.2 && < 0.4,
       directory      == 1.0.*,
-      filepath       == 1.1.*
+      filepath       == 1.1.*,
+      -- For Scion.Packages (provisional)
+      ghc            >= 6.10 && < 6.13
   
   exposed-modules:
     Scion.Browser,
@@ -44,8 +51,12 @@ library
 executable hoogle-parsec
   hs-source-dirs:  src
   main-is:         Main.hs
-  build-depends:   
+  build-depends:
+    editline         >= 0.2,
+    attoparsec       >= 0.8,
+    -- From library
     base             == 4.*,
+    mtl              >= 2,
     text             == 0.11.*,
     parsec           >= 3 && < 4,
     cereal           == 0.3.*, 
@@ -59,19 +70,25 @@ executable hoogle-parsec
     HTTP             >= 4000 && < 5000,
     deepseq          >= 1.1 && < 2,
     MissingH         == 1.*,
-    aeson            >= 0.3.2
+    aeson            >= 0.3.2,
+    -- For Scion.packages (provisional)
+    ghc-paths        == 0.1.*
   
   if impl(ghc >= 7.0)
     build-depends:
       containers     >= 0.2 && < 0.5,
       directory      == 1.1.*,
       filepath       == 1.2.*,
-      bytestring
+      bytestring,
+      -- For Scion.Packages (provisional)
+      ghc            >= 7
   else
     build-depends:
       containers     >= 0.2 && < 0.4,
       directory      == 1.0.*,
-      filepath       == 1.1.*
+      filepath       == 1.1.*,
+      -- For Scion.Packages (provisional)
+      ghc            >= 6.10 && < 6.13
     
   ghc-options: -rtsopts -Wall -fno-warn-unused-do-bind -fno-warn-orphans
 
