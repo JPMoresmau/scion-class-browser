@@ -52,7 +52,7 @@ executable scion-browser
   hs-source-dirs:  src
   main-is:         Main.hs
   build-depends:
-    editline         >= 0.2,
+    haskeline        >= 0.6,
     attoparsec       >= 0.8,
     -- From library
     base             == 4.*,
