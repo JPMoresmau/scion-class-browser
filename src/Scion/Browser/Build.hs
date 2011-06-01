@@ -6,6 +6,8 @@ module Scion.Browser.Build
 , getCabalHoogle
 ) where
 
+import Control.Concurrent.ParallelIO.Local
+import Control.DeepSeq
 import Data.List ((\\), nub)
 import qualified Data.Map as M
 import Data.Version (showVersion)
@@ -62,8 +64,8 @@ createHackageDatabase tmp =
 
 -- | Updates a database with changes in the installed package base.
 updateDatabase :: Database -> [InstalledPackageInfo] -> IO Database
-updateDatabase oldDb pkgInfo = do let dbList        = removeSmallVersions $ nub $ map fst $ M.toList oldDb
-                                      installedList = nub $ map sourcePackageId pkgInfo
+updateDatabase oldDb pkgInfo = do let dbList        = nub $ map fst $ M.toList oldDb
+                                      installedList = nub $ removeSmallVersions $ map sourcePackageId pkgInfo
                                       toRemove      = dbList \\ installedList
                                       toAdd         = installedList \\ dbList
                                       filteredDb    = foldr (\pid db -> M.delete pid db) oldDb toRemove
@@ -79,11 +81,13 @@ removeSmallVersions pids = filter
 -- | Get the database from a set of Cabal packages.
 createCabalDatabase :: [PackageIdentifier] -> IO (Database, [(String, ParseError)])
 createCabalDatabase pkgs =
-  do hooglePkgs <- mapM (\pid -> do db <- getCabalHoogle pid
-                                    return (pkgString pid, db))
-                        pkgs
-     let (db, errors) = partitionPackages hooglePkgs
-     return (pkgListToDb db, errors)
+  withTemporaryDirectory "scionXXXXXX" $ \tmp ->
+    do let toExecute = map (\pid -> do db <- getCabalHoogleWithTmp pid tmp
+                                       return (pkgString pid, db))
+                           pkgs
+       hooglePkgs <- withThreaded $ \pool -> parallelInterleaved pool toExecute
+       let (db, errors) = partitionPackages hooglePkgs
+       return (db `deepseq` pkgListToDb db, errors)
 
 -- | Get the database from a Cabal package.
 getCabalHoogle :: PackageIdentifier -> IO (Either ParseError (Documented Package))
@@ -94,15 +98,15 @@ getCabalHoogleWithTmp pid tmp =
   do let pkgV = pkgString pid
          (PackageName pkg) = pkgName pid
      putStrLn $ "Parsing " ++ pkgV
-     code <- executeCommand tmp "cabal" ["unpack", pkgV]
+     code <- executeCommand tmp "cabal" ["unpack", pkgV] True
      case code of
        ExitFailure _ -> return $ Left (newErrorMessage (Message "package not found")
                                                        (newPos pkgV 0 0))
        ExitSuccess ->
          do let pkgdir = tmp </> pkgV
             withWorkingDirectory pkgdir $
-              do executeCommand pkgdir "cabal" ["configure"]
-                 executeCommand pkgdir "cabal" ["haddock", "--hoogle"]
+              do executeCommand pkgdir "cabal" ["configure"] True
+                 executeCommand pkgdir "cabal" ["haddock", "--hoogle"] True
                  let hoogleFile = pkgdir </> "dist" </> "doc" </> "html" </> pkg </> (pkg ++ ".txt")
                  parseHoogleFile hoogleFile
 

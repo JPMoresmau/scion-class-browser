@@ -6,6 +6,8 @@ module Scion.Browser.Parser
 , parseDirectory
 ) where
 
+import Control.Concurrent.ParallelIO.Local
+import Control.DeepSeq
 import Control.Monad
 import qualified Data.ByteString as BS
 import Data.Serialize
@@ -25,7 +27,9 @@ import Text.ParserCombinators.Parsec.Pos (newPos)
 -- | Parses the contents of a string containing the 
 --   Hoogle file contents.
 parseHoogleString :: String -> BS.ByteString -> Either ParseError (Documented Package)
-parseHoogleString name contents = runP hoogleParser () name contents
+parseHoogleString name contents = case runP hoogleParser () name contents of
+                                    Right pkg -> pkg `deepseq` (Right pkg)
+                                    Left err  -> Left err
 
 -- | Parses a file in Hoogle documentation format, returning
 --   the documentation of the entire package, or the corresponding
@@ -56,7 +60,8 @@ parseDirectory dir tmpdir =
      vDirs <- mapM getVersionDirectory dirs
      let innerDirs = map (\d -> d </> "doc" </> "html") (concat vDirs)
      -- Parse directories recursively
-     dPackages <- mapM (\innerDir -> parseDirectoryFiles innerDir tmpdir) innerDirs -- IO [...]
+     let toExecute = map (\innerDir -> parseDirectoryFiles innerDir tmpdir) innerDirs
+     dPackages <- withThreaded $ \pool -> parallelInterleaved pool toExecute
      let dbs    = concat $ map fst dPackages
          errors = concat $ map snd dPackages
      return (dbs, errors)

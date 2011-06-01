@@ -1,5 +1,6 @@
 module Scion.Browser.Util where
 
+import Control.Concurrent.ParallelIO.Local
 import qualified Data.Map as M
 import Distribution.Package hiding (Package)
 import Scion.Browser
@@ -7,16 +8,25 @@ import System.Exit (ExitCode)
 import System.Process
 import Text.Parsec.Error (ParseError)
 
+numberOfThreads :: Int
+numberOfThreads = 7
+
+withThreaded :: (Pool -> IO a) -> IO a
+withThreaded = withPool numberOfThreads
+
 -- |Executes a command in a directory.
 executeCommand :: FilePath     -- ^Working directory.
                -> String       -- ^Executable to run.
                -> [String]     -- ^Arguments.
+               -> Bool         -- ^Show output
                -> IO ExitCode
-executeCommand tmp exe args =
+executeCommand tmp exe args showOutput =
   do let cproc = CreateProcess (RawCommand exe args)
                                (Just tmp)
                                Nothing
-                               Inherit Inherit Inherit
+                               Inherit 
+                               (if showOutput then Inherit else CreatePipe)
+                               (if showOutput then Inherit else CreatePipe)
                                True
      (_, _, _, h) <- createProcess cproc
      waitForProcess h

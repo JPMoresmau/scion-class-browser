@@ -22,6 +22,7 @@ library
     deepseq          >= 1.1 && < 2,
     MissingH         == 1.*,
     aeson            >= 0.3.2,
+    parallel-io      >= 0.3,
     -- For Scion.packages (provisional)
     ghc-paths        == 0.1.*
   
@@ -46,7 +47,7 @@ library
     Scion.Browser.Query,
     Scion.Browser.Build
     
-  ghc-options: -rtsopts -Wall -fno-warn-unused-do-bind -fno-warn-orphans
+  ghc-options: -rtsopts -Wall -fno-warn-unused-do-bind -fno-warn-orphans -threaded
 
 executable scion-browser
   hs-source-dirs:  src
@@ -71,6 +72,7 @@ executable scion-browser
     deepseq          >= 1.1 && < 2,
     MissingH         == 1.*,
     aeson            >= 0.3.2,
+    parallel-io      >= 0.3,
     -- For Scion.packages (provisional)
     ghc-paths        == 0.1.*
   
@@ -90,5 +92,5 @@ executable scion-browser
       -- For Scion.Packages (provisional)
       ghc            >= 6.10 && < 6.13
     
-  ghc-options: -rtsopts -Wall -fno-warn-unused-do-bind -fno-warn-orphans
+  ghc-options: -rtsopts -Wall -fno-warn-unused-do-bind -fno-warn-orphans -threaded
 

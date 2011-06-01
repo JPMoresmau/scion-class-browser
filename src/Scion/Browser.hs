@@ -20,8 +20,6 @@ import Data.DeriveTH
 import Data.List (find)
 import qualified Data.Map as M
 import Data.Serialize
-import qualified Data.Text as T
-import Data.Version (showVersion)
 import Distribution.Package hiding (Package)
 import qualified Distribution.Package as P
 import Distribution.Version
@@ -43,7 +41,8 @@ type Database = M.Map PackageIdentifier (Documented Package)
 
 saveDatabase :: FilePath -> Database -> IO ()
 saveDatabase fpath db  = withFile fpath WriteMode $
-                           \hnd -> BS.hPut hnd (encode db)
+                           \hnd -> do BS.hPut hnd (encode db)
+                                      hFlush hnd
 
 loadDatabase :: FilePath -> IO (Maybe Database)
 loadDatabase fpath = withFile fpath ReadMode $

@@ -7,6 +7,7 @@ import Data.Aeson
 import qualified Data.Map as M
 import qualified Data.Text as T
 import Distribution.Package hiding (Package)
+import Language.Haskell.Exts.Annotated.Syntax hiding (String)
 import Scion.Browser
 import Scion.Browser.Build (updateDatabase)
 import Scion.Browser.Query
@@ -26,19 +27,21 @@ data CurrentDatabase = AllPackages
                      | APackage PackageIdentifier
 
 data BrowserState = BrowserState
-                      { localDb   :: Database
+                      { allDb     :: Database
+                      , localDb   :: Database
                       , currentDb :: Database
                       }
 
 initialState :: BrowserState
-initialState = BrowserState M.empty M.empty
+initialState = BrowserState M.empty M.empty M.empty
 
 type BrowserM = StateT BrowserState IO
 
 executeCommand :: Command -> BrowserM Value
 executeCommand (LoadLocalDatabase path) =
   do fileExists <- lift $ doesFileExist path
-     curDb <- (if not fileExists
+     let fileExists' = fileExists `seq` fileExists
+     curDb <- (if not fileExists'
                   then return M.empty
                   else do maybeDb <- lift $ loadDatabase path
                           case maybeDb of
@@ -48,6 +51,7 @@ executeCommand (LoadLocalDatabase path) =
      let pkgInfos = concat $ map snd pkgInfos'
      newDb <- lift $ updateDatabase curDb pkgInfos
      lift $ saveDatabase path newDb
+     modify (\s -> s { localDb = newDb, allDb = newDb, currentDb = newDb })
      return $ String (T.pack "ok")
 executeCommand (SetCurrentDatabase db)  =
   do case db of
@@ -64,7 +68,7 @@ executeCommand (SetCurrentDatabase db)  =
 executeCommand GetPackages              = do db <- getCurrentDatabase
                                              return $ toJSON (allPackages db)
 executeCommand (GetModules mname)       = do db <- getCurrentDatabase
-                                             let smods = map fst (getModules mname db)
+                                             let smods = getDocumentedModules (getSubmodules mname db)
                                              return $ toJSON smods
 executeCommand (GetDeclarations mname)  = do db <- getCurrentDatabase
                                              let decls = concat $ map snd (getDeclsInModule mname db)
@@ -73,6 +77,15 @@ executeCommand (GetDeclarations mname)  = do db <- getCurrentDatabase
 getCurrentDatabase :: BrowserM Database
 getCurrentDatabase = do s <- get
                         return $ currentDb s
+
+getDocumentedModules :: [(String, [(PackageIdentifier, Documented Module)])] -> [Documented Module]
+getDocumentedModules = map (getDocumentedModule . snd)
+
+getDocumentedModule :: [(PackageIdentifier, Documented Module)] -> Documented Module
+getDocumentedModule [(_, md)]                      = md
+getDocumentedModule mds@((_, Module _ hd _ _ _):_) = let decls = concat $ map (\(Module _ _ _ _ decl) -> decl) $ map snd mds
+                                                     in  Module NoDoc hd [] [] decls
+getDocumentedModule _                              = error "The impossible happened"
 
 instance FromJSON Command where
   parseJSON (Object v) = case M.lookup (T.pack "command") v of
