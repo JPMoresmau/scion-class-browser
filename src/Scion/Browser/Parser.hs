@@ -10,6 +10,7 @@ import Control.Concurrent.ParallelIO.Local
 import Control.DeepSeq
 import Control.Monad
 import qualified Data.ByteString as BS
+import Data.Either (rights)
 import Data.Serialize
 import Scion.Browser
 import Scion.Browser.Parser.Internal (hoogleParser)
@@ -61,9 +62,10 @@ parseDirectory dir tmpdir =
      let innerDirs = map (\d -> d </> "doc" </> "html") (concat vDirs)
      -- Parse directories recursively
      let toExecute = map (\innerDir -> parseDirectoryFiles innerDir tmpdir) innerDirs
-     dPackages <- withThreaded $ \pool -> parallelInterleaved pool toExecute
-     let dbs    = concat $ map fst dPackages
-         errors = concat $ map snd dPackages
+     eitherDPackages <- withThreaded $ \pool -> parallelInterleavedE pool toExecute
+     let dPackages = rights eitherDPackages
+         dbs       = concat $ map fst dPackages
+         errors    = concat $ map snd dPackages
      return (dbs, errors)
 
 getVersionDirectory :: FilePath -> IO [FilePath]

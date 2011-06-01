@@ -7,12 +7,10 @@ import Scion.Browser
 import System.Exit (ExitCode)
 import System.Process
 import Text.Parsec.Error (ParseError)
-
-numberOfThreads :: Int
-numberOfThreads = 7
+import GHC.Conc.Sync (numCapabilities)
 
 withThreaded :: (Pool -> IO a) -> IO a
-withThreaded = withPool numberOfThreads
+withThreaded = withPool numCapabilities
 
 -- |Executes a command in a directory.
 executeCommand :: FilePath     -- ^Working directory.

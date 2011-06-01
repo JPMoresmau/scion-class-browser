@@ -50,6 +50,7 @@ executeCommand (LoadLocalDatabase path) =
      pkgInfos' <- lift $ getPkgInfos
      let pkgInfos = concat $ map snd pkgInfos'
      newDb <- lift $ updateDatabase curDb pkgInfos
+     lift $ putStrLn ("Saving on " ++ path)
      lift $ saveDatabase path newDb
      modify (\s -> s { localDb = newDb, allDb = newDb, currentDb = newDb })
      return $ String (T.pack "ok")

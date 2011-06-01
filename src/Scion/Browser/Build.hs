@@ -8,6 +8,7 @@ module Scion.Browser.Build
 
 import Control.Concurrent.ParallelIO.Local
 import Control.DeepSeq
+import Data.Either (rights)
 import Data.List ((\\), nub)
 import qualified Data.Map as M
 import Data.Version (showVersion)
@@ -85,8 +86,9 @@ createCabalDatabase pkgs =
     do let toExecute = map (\pid -> do db <- getCabalHoogleWithTmp pid tmp
                                        return (pkgString pid, db))
                            pkgs
-       hooglePkgs <- withThreaded $ \pool -> parallelInterleaved pool toExecute
-       let (db, errors) = partitionPackages hooglePkgs
+       eitherHooglePkgs <- withThreaded $ \pool -> parallelInterleavedE pool toExecute
+       let hooglePkgs = rights eitherHooglePkgs
+           (db, errors) = partitionPackages hooglePkgs
        return (db `deepseq` pkgListToDb db, errors)
 
 -- | Get the database from a Cabal package.

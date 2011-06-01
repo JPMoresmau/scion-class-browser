@@ -40,9 +40,9 @@ instance P.Package (Package l) where
 type Database = M.Map PackageIdentifier (Documented Package)
 
 saveDatabase :: FilePath -> Database -> IO ()
-saveDatabase fpath db  = withFile fpath WriteMode $
-                           \hnd -> do BS.hPut hnd (encode db)
-                                      hFlush hnd
+saveDatabase fpath db = withFile fpath WriteMode $
+                          \hnd -> do BS.hPut hnd (encode db)
+                                     hFlush hnd
 
 loadDatabase :: FilePath -> IO (Maybe Database)
 loadDatabase fpath = withFile fpath ReadMode $
