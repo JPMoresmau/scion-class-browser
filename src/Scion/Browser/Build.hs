@@ -28,6 +28,9 @@ import Text.ParserCombinators.Parsec.Pos (newPos)
 baseDbUrl :: String
 baseDbUrl = "http://haskell.org/hoogle/base.txt"
 
+ghcDbUrl :: String
+ghcDbUrl = "http://www.haskell.org/ghc/docs/latest/html/libraries/ghc/ghc.txt"
+
 hoogleDbUrl :: String
 hoogleDbUrl = "http://hackage.haskell.org/packages/archive/00-hoogle.tar.gz"
 
@@ -59,9 +62,16 @@ createHackageDatabase tmp =
      -- Parse base package
      Just baseDownloaded <- downloadFileStrict baseDbUrl
      putStrLn "Base database successfully downloaded"
-     case parseHoogleString "base.txt" baseDownloaded of
-       Right b -> return (pkgListToDb (b:pkgs), errors)
-       Left  e -> return (pkgListToDb pkgs, ("base.txt", e):errors)
+     -- Parse ghc package
+     Just ghcDownloaded <- downloadFileStrict ghcDbUrl
+     putStrLn "GHC database successfully downloaded"
+     let (dbBase, errorsBase) = case parseHoogleString "base.txt" baseDownloaded of
+                                  Right b -> (b:pkgs, errors)
+                                  Left  e -> (pkgs, ("base.txt", e):errors)
+     let (dbGhc, errorsGhc) = case parseHoogleString "ghc.txt" ghcDownloaded of
+                                Right b -> (b:dbBase, errorsBase)
+                                Left  e -> (dbBase, ("ghc.txt", e):errorsBase)
+     return (pkgListToDb dbGhc, errorsGhc)
 
 -- | Updates a database with changes in the installed package base.
 updateDatabase :: Database -> [InstalledPackageInfo] -> IO Database
