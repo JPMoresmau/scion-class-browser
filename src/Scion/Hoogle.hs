@@ -1,10 +1,30 @@
-module Scion.Hoogle where
+module Scion.Hoogle
+( getHoogleDatabases
+) where
 
+import Control.Monad
 import Data.List (find)
+import Data.Monoid
 import Distribution.InstalledPackageInfo
 import Distribution.Package
+import qualified Hoogle as H
 import Scion.Packages
+import System.Directory
 import System.FilePath
+
+-- |Loads the Hoogle search database into memory.
+--  If no database is found, an empty one is returned.
+getHoogleDatabases :: IO H.Database
+getHoogleDatabases = do path <- findHoogleDatabasesPath
+                        case path of
+                          Nothing -> return mempty
+                          Just p  -> do files <- getDirectoryContents p
+                                        hooFiles <- filterM (\f -> do exists <- doesFileExist f
+                                                                      let isHoo = takeExtension f == ".hoo"
+                                                                      return $ exists && isHoo)
+                                                            files
+                                        dbs <- mapM H.loadDatabase hooFiles
+                                        return $ mconcat dbs
 
 findHoogleDatabasesPath :: IO (Maybe String)
 findHoogleDatabasesPath = do minfo <- findHoogleInfo
@@ -27,6 +47,6 @@ removeSmallVersions pids = filter
   pids
 
 getDatabasesDir :: String -> String
-getDatabasesDir path = let (_:(hoogleV:(lib:rest))) = reverse $ splitDirectories path
+getDatabasesDir path = let (_:(hoogleV:(_:rest))) = reverse $ splitDirectories path
                        in  (joinPath $ reverse (hoogleV:("share":rest))) </> "databases"
 

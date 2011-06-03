@@ -45,8 +45,8 @@ library
   exposed-modules:
     Scion.Browser,
     Scion.Browser.Query,
-    Scion.Browser.Build
-    -- Scion.Hoogle
+    Scion.Browser.Build,
+    Scion.Hoogle
     
   ghc-options: -rtsopts -Wall -fno-warn-unused-do-bind -fno-warn-orphans -threaded
 

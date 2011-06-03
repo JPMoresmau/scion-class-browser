@@ -8,10 +8,17 @@ import qualified Data.ByteString.Char8 as BS
 import qualified Data.ByteString.Lazy.Char8 as LBS
 import Scion.Browser.Json.Commands
 import System.Console.Haskeline
- 
+
+import Hoogle
+import Scion.Hoogle
+
 main :: IO ()
-main = do runStateT (runInputT defaultSettings loop) initialState
-          return ()
+main = do db <- getHoogleDatabases
+          putStrLn $ take 1000 $ showDatabase db Nothing
+
+main' :: IO ()
+main' = do runStateT (runInputT defaultSettings loop) initialState
+           return ()
 
 loop :: InputT BrowserM ()
 loop = do maybeLine <- getInputLine ">> "
