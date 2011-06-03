@@ -1,4 +1,4 @@
-{-# LANGUAGE ScopedTypeVariables, TemplateHaskell #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Scion.Browser.Parser
 ( parseHoogleString

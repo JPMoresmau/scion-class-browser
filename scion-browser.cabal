@@ -10,10 +10,9 @@ library
     mtl              >= 2,
     text             == 0.11.*,
     parsec           >= 3 && < 4,
-    cereal           == 0.3.*, 
-    derive           >= 2.5 && < 3,
+    cereal           == 0.3.*,
     Cabal            >= 0.10, 
-    haskell-src-exts >= 1.10 && < 2,
+    haskell-src-exts >= 1.11 && < 2,
     process          >= 1 && < 2,
     unix             >= 2 && < 3,
     tar              == 0.3.*,
@@ -23,6 +22,7 @@ library
     MissingH         == 1.*,
     aeson            >= 0.3.2,
     parallel-io      >= 0.3,
+    hoogle           >= 4.2 && < 4.3,
     -- For Scion.packages (provisional)
     ghc-paths        == 0.1.*
   
@@ -46,6 +46,7 @@ library
     Scion.Browser,
     Scion.Browser.Query,
     Scion.Browser.Build
+    -- Scion.Hoogle
     
   ghc-options: -rtsopts -Wall -fno-warn-unused-do-bind -fno-warn-orphans -threaded
 
@@ -60,10 +61,9 @@ executable scion-browser
     mtl              >= 2,
     text             == 0.11.*,
     parsec           >= 3 && < 4,
-    cereal           == 0.3.*, 
-    derive           >= 2.5 && < 3,
+    cereal           == 0.3.*,
     Cabal            >= 0.10, 
-    haskell-src-exts >= 1.10 && < 2,
+    haskell-src-exts >= 1.11 && < 2,
     process          >= 1 && < 2,
     unix             >= 2 && < 3,
     tar              == 0.3.*,
@@ -73,6 +73,7 @@ executable scion-browser
     MissingH         == 1.*,
     aeson            >= 0.3.2,
     parallel-io      >= 0.3,
+    hoogle           >= 4.2 && < 4.3,
     -- For Scion.packages (provisional)
     ghc-paths        == 0.1.*
   

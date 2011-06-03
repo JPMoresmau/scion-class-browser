@@ -112,7 +112,7 @@ lonelyComment :: BSParser [Documented Decl]
 lonelyComment = try (docComment >> return [])
 
 parseTypeMode :: Parser.ParseMode
-parseTypeMode = Parser.ParseMode "" knownExtensions False False []
+parseTypeMode = Parser.ParseMode "" knownExtensions False False Nothing
 
 parseType :: String -> BSParser (Documented Type)
 parseType st = do     
