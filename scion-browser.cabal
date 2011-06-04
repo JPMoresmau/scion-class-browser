@@ -8,6 +8,7 @@ library
   build-depends:   
     base             == 4.*,
     mtl              >= 2,
+    derive           >= 2.5 && < 3,
     text             == 0.11.*,
     parsec           >= 3 && < 4,
     cereal           == 0.3.*,
@@ -22,7 +23,6 @@ library
     MissingH         == 1.*,
     aeson            >= 0.3.2,
     parallel-io      >= 0.3,
-    hoogle           >= 4.2 && < 4.3,
     -- For Scion.packages (provisional)
     ghc-paths        == 0.1.*
   
@@ -59,6 +59,7 @@ executable scion-browser
     -- From library
     base             == 4.*,
     mtl              >= 2,
+    derive           >= 2.5 && < 3,
     text             == 0.11.*,
     parsec           >= 3 && < 4,
     cereal           == 0.3.*,
@@ -73,7 +74,6 @@ executable scion-browser
     MissingH         == 1.*,
     aeson            >= 0.3.2,
     parallel-io      >= 0.3,
-    hoogle           >= 4.2 && < 4.3,
     -- For Scion.packages (provisional)
     ghc-paths        == 0.1.*
   

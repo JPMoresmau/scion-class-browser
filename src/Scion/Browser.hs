@@ -1,4 +1,4 @@
-{-# LANGUAGE MultiParamTypeClasses, FunctionalDependencies #-}
+{-# LANGUAGE TemplateHaskell, MultiParamTypeClasses, FunctionalDependencies #-}
 
 module Scion.Browser
 ( Package (..)
@@ -16,6 +16,7 @@ module Scion.Browser
 
 import Control.DeepSeq
 import qualified Data.ByteString as BS
+import Data.DeriveTH
 import Data.List (find)
 import qualified Data.Map as M
 import Data.Serialize
@@ -87,7 +88,6 @@ instance DocItem Decl GadtDecl where
 instance Named GadtDecl where
   getName (GadtDecl _ name _) = getNameString name
 
-{-
 -- Serialize instances
 $( derive makeSerialize ''Package )
 $( derive makeSerialize ''PackageIdentifier )
@@ -99,46 +99,4 @@ $( derive makeNFData ''Package )
 $( derive makeNFData ''PackageIdentifier )
 $( derive makeNFData ''PackageName )
 $( derive makeNFData ''Version )
--}
-
-instance Serialize l => Serialize (Package l) where
-  put (Package x1 x2 x3) = do put x1
-                              put x2
-                              put x3
-  get = do x1 <- get
-           x2 <- get;
-           x3 <- get;
-           return (Package x1 x2 x3)
-
-instance Serialize PackageIdentifier where
-  put (PackageIdentifier x1 x2) = do put x1
-                                     put x2
-  get = do x1 <- get
-           x2 <- get
-           return (PackageIdentifier x1 x2)
-           
-instance Serialize PackageName where
-  put (PackageName x1) = put x1
-  get = do x1 <- get
-           return (PackageName x1)
-
-instance Serialize Version where
-  put (Version x1 x2) = do put x1
-                           put x2
-  get = do x1 <- get
-           x2 <- get
-           return (Version x1 x2)
-
-instance NFData l => NFData (Package l) where
-  rnf (Package x1 x2 x3) = (rnf x1 `seq` (rnf x2 `seq` (rnf x3 `seq` ())))
-
-instance NFData PackageIdentifier where
-  rnf (PackageIdentifier x1 x2) = (rnf x1 `seq` (rnf x2 `seq` ()))
-
-instance NFData PackageName where
-  rnf (PackageName x1) = (rnf x1 `seq` ())
-
-instance NFData Version where
-  rnf (Version x1 x2) = (rnf x1 `seq` (rnf x2 `seq` ()))
-
 
