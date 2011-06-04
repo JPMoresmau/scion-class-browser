@@ -9,7 +9,7 @@ import qualified Data.ByteString.Lazy.Char8 as LBS
 import Server.Commands
 import System.Console.Haskeline
 
-import Scion.Hoogle
+import Scion.Hoogle.Util
 
 main :: IO ()
 main = do db <- findHoogleBinPath

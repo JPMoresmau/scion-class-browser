@@ -273,6 +273,26 @@ data_ = dataOrNewType "data" (DataType NoDoc)
 newtype_ :: Doc -> BSParser (Documented Decl, [Documented Decl])
 newtype_ = dataOrNewType "newtype" (NewType NoDoc)
 
+dataOrNewTypeHead :: String -> (Documented DataOrNew) -> Doc -> BSParser (Documented Decl)
+dataOrNewTypeHead keyword dOrN doc = do string keyword
+                                        spaces0
+                                        rests <- many1 possibleKind
+                                        let rest = concat $ map fst rests
+                                            k = snd (last rests)
+                                        {- rest <- many $ allButDoubleColon
+                                        k <- optionMaybe (do string "::"
+                                                             spaces0
+                                                             kind) -}
+                                        ty <- parseType rest
+                                        let (ctx, hd) = typeToContextAndHead ty
+                                        return $ GDataDecl doc dOrN ctx hd k [] Nothing
+
+dataHead :: Doc -> BSParser (Documented Decl)
+dataHead = dataOrNewTypeHead "data" (DataType NoDoc)
+
+newtypeHead :: Doc -> BSParser (Documented Decl)
+newtypeHead = dataOrNewTypeHead "newtype" (NewType NoDoc)
+
 class_ :: Doc -> BSParser (Documented Decl)
 class_ doc = do string "class"
                 spaces0
