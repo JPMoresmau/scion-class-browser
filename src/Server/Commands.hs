@@ -1,4 +1,4 @@
-module Scion.Browser.Json.Commands where
+module Server.Commands where
 
 import Control.Applicative
 import Control.Monad
@@ -11,7 +11,6 @@ import Language.Haskell.Exts.Annotated.Syntax hiding (String)
 import Scion.Browser
 import Scion.Browser.Build (updateDatabase)
 import Scion.Browser.Query
-import Scion.Browser.Json.Instances ()
 import Scion.Packages
 import System.Directory
 

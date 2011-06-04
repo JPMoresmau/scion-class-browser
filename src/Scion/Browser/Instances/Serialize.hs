@@ -1,9 +1,6 @@
 {-# LANGUAGE TemplateHaskell, TypeSynonymInstances, FlexibleInstances, ScopedTypeVariables #-}
 
--- Instances of Serialize and NFData
--- for types in haskell-src-exts
-
-module Scion.Browser.HSEInstances where
+module Scion.Browser.Instances.Serialize where
 
 import Control.DeepSeq
 import Control.Monad (liftM)
@@ -13,50 +10,24 @@ import Data.IORef
 import qualified Data.Map as M
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as E
+import Distribution.Package hiding (Package)
+import Distribution.Version
 import Language.Haskell.Exts.Annotated.Syntax
+import Scion.Browser.Types
+import Scion.Browser.Instances.NFData ()
 import System.IO.Unsafe
 
--- |Documentation for an item.
--- Now it is simply a Text element.
-data Doc = NoDoc
-         | Doc T.Text
-         deriving Show
-
-docFromString :: String -> Doc
-docFromString s = Doc (T.pack s)
-
--- |A documented item.
-type Documented a = a Doc
-
--- ----------------------------------
--- Instances for Serialize and NFData
--- for a bunch of datatypes
--- ----------------------------------
+$( derive makeSerialize ''Doc )
+$( derive makeSerialize ''Package )
+$( derive makeSerialize ''PackageIdentifier )
+$( derive makeSerialize ''PackageName )
+$( derive makeSerialize ''Version )
 
 instance Serialize T.Text where
   put = put . E.encodeUtf8
   get = liftM E.decodeUtf8 get
 
--- |Gets the name inside a Name constructor.
-getNameString :: Name l -> String
-getNameString (Ident _ s)  = s
-getNameString (Symbol _ s) = "(" ++ s ++ ")"
-
--- |Gets the qualified name as a string.
-getQNameString :: QName l -> String
-getQNameString (Qual _ (ModuleName _ "")    ename) = getNameString ename
-getQNameString (Qual _ (ModuleName _ mname) ename) = mname ++ "." ++ getNameString ename
-getQNameString (UnQual _ ename)                    = getNameString ename
-getQNameString (Special _ (UnitCon _))             = "()"
-getQNameString (Special _ (ListCon _))             = "[]"
-getQNameString (Special _ (FunCon _))              = "(->)"
-getQNameString (Special _ (TupleCon _ box n))      = case box of
-                                                       Boxed   -> "(" ++ replicate (n-1) ',' ++ ")"
-                                                       Unboxed -> "(#" ++ replicate (n-1) ',' ++ "#)"
-getQNameString (Special _ (Cons _))                = "(:)"
-getQNameString (Special _ (UnboxedSingleCon _))    = "(# #)"
-
--- Lookup table (yes, it used unsafePerformIO)
+-- Lookup table (yes, it uses unsafePerformIO)
 
 lookupNameTable :: IORef (M.Map String (Documented Name))
 lookupNameTable = unsafePerformIO $ newIORef M.empty
@@ -523,77 +494,4 @@ instance Serialize (Documented SpecialCon) where
              _ -> do boxed <- get
                      n <- get
                      return $ TupleCon noDoc boxed n
-
-
--- derive instances for Doc
-$( derive makeSerialize ''Doc )
-$( derive makeNFData ''Doc )
-
--- derive NFData instances for haskell-src-exts
-$( derive makeNFData ''Module )
-$( derive makeNFData ''ModuleHead )
-$( derive makeNFData ''WarningText )
-$( derive makeNFData ''ExportSpecList )
-$( derive makeNFData ''ExportSpec )
-$( derive makeNFData ''ImportDecl )
-$( derive makeNFData ''ImportSpecList )
-$( derive makeNFData ''ImportSpec )
-$( derive makeNFData ''Assoc )
-$( derive makeNFData ''Decl )
-$( derive makeNFData ''DeclHead )
-$( derive makeNFData ''InstHead )
-$( derive makeNFData ''Binds )
-$( derive makeNFData ''IPBind )
-$( derive makeNFData ''ClassDecl )
-$( derive makeNFData ''InstDecl )
-$( derive makeNFData ''Deriving )
-$( derive makeNFData ''DataOrNew )
-$( derive makeNFData ''ConDecl )
-$( derive makeNFData ''FieldDecl )
-$( derive makeNFData ''QualConDecl )
-$( derive makeNFData ''GadtDecl )
-$( derive makeNFData ''BangType )
-$( derive makeNFData ''Match )
-$( derive makeNFData ''Rhs )
-$( derive makeNFData ''GuardedRhs )
-$( derive makeNFData ''Context )
-$( derive makeNFData ''FunDep )
-$( derive makeNFData ''Asst )
-$( derive makeNFData ''Type )
-$( derive makeNFData ''Boxed )
-$( derive makeNFData ''Kind )
-$( derive makeNFData ''TyVarBind )
-$( derive makeNFData ''Exp )
-$( derive makeNFData ''Stmt )
-$( derive makeNFData ''QualStmt )
-$( derive makeNFData ''FieldUpdate )
-$( derive makeNFData ''Alt )
-$( derive makeNFData ''GuardedAlts )
-$( derive makeNFData ''GuardedAlt )
-$( derive makeNFData ''XAttr )
-$( derive makeNFData ''Pat )
-$( derive makeNFData ''PatField )
-$( derive makeNFData ''PXAttr )
-$( derive makeNFData ''RPat )
-$( derive makeNFData ''RPatOp )
-$( derive makeNFData ''Literal )
-$( derive makeNFData ''ModuleName )
-$( derive makeNFData ''QName )
-$( derive makeNFData ''Name )
-$( derive makeNFData ''QOp )
-$( derive makeNFData ''Op )
-$( derive makeNFData ''SpecialCon )
-$( derive makeNFData ''CName )
-$( derive makeNFData ''IPName )
-$( derive makeNFData ''XName )
-$( derive makeNFData ''Bracket )
-$( derive makeNFData ''Splice )
-$( derive makeNFData ''Safety )
-$( derive makeNFData ''CallConv )
-$( derive makeNFData ''ModulePragma )
-$( derive makeNFData ''Tool )
-$( derive makeNFData ''Rule )
-$( derive makeNFData ''RuleVar )
-$( derive makeNFData ''Activation )
-$( derive makeNFData ''Annotation )
 

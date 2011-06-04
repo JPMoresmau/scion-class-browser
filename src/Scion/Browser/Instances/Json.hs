@@ -1,6 +1,6 @@
 {-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
 
-module Scion.Browser.Json.Instances where
+module Scion.Browser.Instances.Json where
 
 import Control.Applicative
 import Control.Monad
@@ -8,7 +8,7 @@ import Data.Aeson
 import Data.Version
 import qualified Data.Text as T
 import Distribution.Package hiding (Package)
-import Scion.Browser
+import Scion.Browser.Types
 import Language.Haskell.Exts.Annotated.Syntax hiding (String)
 import Language.Haskell.Exts.Pretty
 import Text.ParserCombinators.ReadP
