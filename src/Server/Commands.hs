@@ -11,14 +11,16 @@ import Language.Haskell.Exts.Annotated.Syntax hiding (String)
 import Scion.Browser
 import Scion.Browser.Build (updateDatabase)
 import Scion.Browser.Query
+import qualified Scion.Hoogle as H
 import Scion.Packages
 import System.Directory
 
-data Command = LoadLocalDatabase FilePath
+data Command = LoadLocalDatabase FilePath Bool
              | GetPackages
              | SetCurrentDatabase CurrentDatabase
              | GetModules String
              | GetDeclarations String
+             | HoogleQuery String
 
 data CurrentDatabase = AllPackages
                      | HackageDatabase
@@ -37,7 +39,7 @@ initialState = BrowserState M.empty M.empty M.empty
 type BrowserM = StateT BrowserState IO
 
 executeCommand :: Command -> BrowserM Value
-executeCommand (LoadLocalDatabase path) =
+executeCommand (LoadLocalDatabase path rebuild) =
   do fileExists <- lift $ doesFileExist path
      let fileExists' = fileExists `seq` fileExists
      curDb <- (if not fileExists'
@@ -46,11 +48,14 @@ executeCommand (LoadLocalDatabase path) =
                           case maybeDb of
                             Nothing    -> return M.empty
                             Just theDb -> return theDb)
-     pkgInfos' <- lift $ getPkgInfos
-     let pkgInfos = concat $ map snd pkgInfos'
-     newDb <- lift $ updateDatabase curDb pkgInfos
-     lift $ putStrLn ("Saving on " ++ path)
-     lift $ saveDatabase path newDb
+     newDb <- if not rebuild
+                 then return curDb
+                 else do pkgInfos' <- lift $ getPkgInfos
+                         let pkgInfos = concat $ map snd pkgInfos'
+                         newDb <- lift $ updateDatabase curDb pkgInfos
+                         lift $ putStrLn ("Saving on " ++ path)
+                         lift $ saveDatabase path newDb
+                         return newDb
      modify (\s -> s { localDb = newDb, allDb = newDb, currentDb = newDb })
      return $ String (T.pack "ok")
 executeCommand (SetCurrentDatabase db)  =
@@ -73,10 +78,17 @@ executeCommand (GetModules mname)       = do db <- getCurrentDatabase
 executeCommand (GetDeclarations mname)  = do db <- getCurrentDatabase
                                              let decls = concat $ map snd (getDeclsInModule mname db)
                                              return $ toJSON decls
+executeCommand (HoogleQuery query)      = do db <- getCurrentDatabase
+                                             results <- lift $ H.query db query
+                                             return $ toJSON results
 
 getCurrentDatabase :: BrowserM Database
 getCurrentDatabase = do s <- get
                         return $ currentDb s
+
+getEntireDatabase :: BrowserM Database
+getEntireDatabase = do s <- get
+                       return $ allDb s
 
 getDocumentedModules :: [(String, [(PackageIdentifier, Documented Module)])] -> [Documented Module]
 getDocumentedModules = map (getDocumentedModule . snd)
@@ -92,10 +104,12 @@ instance FromJSON Command where
                            Just (String e) ->
                              case T.unpack e of
                                "load-local-db"    -> LoadLocalDatabase <$> v .: T.pack "filepath"
+                                                                       <*> v .: T.pack "rebuild"
                                "get-packages"     -> pure GetPackages
                                "set-current-db"   -> SetCurrentDatabase <$> v .: T.pack "new-db"
                                "get-modules"      -> GetModules <$> v .: T.pack "module"
                                "get-declarations" -> GetDeclarations <$> v .: T.pack "module"
+                               "hoogle-query"     -> HoogleQuery <$> v .: T.pack "query"
                                _                  -> mzero
                            _ -> mzero
   parseJSON _          = mzero

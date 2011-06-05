@@ -58,16 +58,16 @@ getQNameString (Special _ (UnboxedSingleCon _))    = "(# #)"
 -- ------------------------------
 
 class Annotated e => Named e where
-  getName :: (e l) -> String
+  getName :: Show l => (e l) -> String
 
 class (Named parent, Named child) => DocItem parent child | parent -> child where
-  getChildren :: (parent l) -> [child l]
-  getChild :: (parent l) -> String -> Maybe (child l)
+  getChildren :: Show l => (parent l) -> [child l]
+  getChild :: Show l => (parent l) -> String -> Maybe (child l)
   getChild p name = find (\d -> (getName d) == name) (getChildren p)
 
 instance Named Module where
   getName (Module _ (Just (ModuleHead _ (ModuleName _ name) _ _)) _ _ _) = name
-  getName _                                                              = ""
+  getName v                                                              = error $ "This should not be possible: " ++ show v
 
 instance DocItem Module Decl where
   getChildren (Module _ _ _ _ decls) = decls
@@ -78,7 +78,8 @@ instance Named Decl where
   getName (GDataDecl _ _ _ (DHead _ name _) _ _ _) = getNameString name
   getName (ClassDecl _ _ (DHead _ name _) _ _)     = getNameString name
   getName (InstDecl _ _ (IHead _ name _) _)        = getQNameString name
-  getName _                                        = ""
+  getName (TypeSig _ [name] _)                     = getNameString name
+  getName v                                        = error $ "This should not be possible: " ++ show v
 
 instance DocItem Decl GadtDecl where
   getChildren (GDataDecl _ _ _ _ _ cons _) = cons

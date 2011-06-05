@@ -9,15 +9,9 @@ import qualified Data.ByteString.Lazy.Char8 as LBS
 import Server.Commands
 import System.Console.Haskeline
 
-import Scion.Hoogle.Util
-
 main :: IO ()
-main = do db <- findHoogleBinPath
-          putStrLn $ show db
-
-main' :: IO ()
-main' = do runStateT (runInputT defaultSettings loop) initialState
-           return ()
+main = do runStateT (runInputT defaultSettings loop) initialState
+          return ()
 
 loop :: InputT BrowserM ()
 loop = do maybeLine <- getInputLine ">> "

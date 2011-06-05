@@ -8,8 +8,6 @@ import Distribution.Package
 import Scion.Packages
 import System.FilePath
 
--- Functions for parsing Hoogle results
-
 -- Functions for finding Hoogle in the system
 
 findHoogleBinPath :: IO (Maybe String)
