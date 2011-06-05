@@ -59,33 +59,33 @@ instance ToJSON (Documented Module) where
   toJSON _ = Null
 
 instance ToJSON (Documented Decl) where
-  toJSON (GDataDecl doc dOrM ctx hd kind decls _) = object [ T.pack "doc"     .= doc
-                                                           , T.pack "type"    .= dOrM
-                                                           , T.pack "context" .= ctx
-                                                           , T.pack "head"    .= hd
-                                                           , T.pack "kind"    .= kind
-                                                           , T.pack "decls"   .= decls
+  toJSON (GDataDecl doc dOrM ctx hd kind decls _) = object [ T.pack "doc"      .= doc
+                                                           , T.pack "type"     .= dOrM
+                                                           , T.pack "context"  .= ctx
+                                                           , T.pack "head"     .= hd
+                                                           , T.pack "kind"     .= kind
+                                                           , T.pack "decls"    .= decls
                                                            ]
-  toJSON (ClassDecl doc ctx hd fdeps _)           = object [ T.pack "doc"     .= doc
-                                                           , T.pack "type"    .= T.pack "class"
-                                                           , T.pack "context" .= ctx
-                                                           , T.pack "head"    .= hd
-                                                           , T.pack "fundeps" .= fdeps
+  toJSON (ClassDecl doc ctx hd fdeps _)           = object [ T.pack "doc"      .= doc
+                                                           , T.pack "type"     .= T.pack "class"
+                                                           , T.pack "context"  .= ctx
+                                                           , T.pack "head"     .= hd
+                                                           , T.pack "fundeps"  .= fdeps
                                                            ]
-  toJSON (InstDecl doc ctx hd _)                  = object [ T.pack "doc"     .= doc
-                                                           , T.pack "type"    .= T.pack "instance"
-                                                           , T.pack "context" .= ctx
-                                                           , T.pack "head"    .= hd
+  toJSON (InstDecl doc ctx hd _)                  = object [ T.pack "doc"      .= doc
+                                                           , T.pack "type"     .= T.pack "instance"
+                                                           , T.pack "context"  .= ctx
+                                                           , T.pack "head"     .= hd
                                                            ]
-  toJSON (TypeSig doc [name] ty)                  = object [ T.pack "doc"     .= doc
-                                                           , T.pack "type"    .= T.pack "signature"
-                                                           , T.pack "name"    .= name
-                                                           , T.pack "type"    .= ty
+  toJSON (TypeSig doc [name] ty)                  = object [ T.pack "doc"      .= doc
+                                                           , T.pack "type"     .= T.pack "signature"
+                                                           , T.pack "name"     .= name
+                                                           , T.pack "signature" .= ty
                                                            ]
-  toJSON (TypeDecl doc hd ty)                     = object [ T.pack "doc"     .= doc
-                                                           , T.pack "type"    .= T.pack "type"
-                                                           , T.pack "head"    .= hd
-                                                           , T.pack "type"    .= ty
+  toJSON (TypeDecl doc hd ty)                     = object [ T.pack "doc"      .= doc
+                                                           , T.pack "type"     .= T.pack "type"
+                                                           , T.pack "head"     .= hd
+                                                           , T.pack "equals"   .= ty
                                                            ]
   toJSON _ = Null
 
