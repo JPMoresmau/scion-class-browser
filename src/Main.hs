@@ -14,7 +14,7 @@ main = do runStateT (runInputT defaultSettings loop) initialState
           return ()
 
 loop :: InputT BrowserM ()
-loop = do maybeLine <- getInputLine ">> "
+loop = do maybeLine <- getInputLine ""
           case maybeLine of
             Nothing -> return () -- ctrl+D or EOF
             Just line -> do
