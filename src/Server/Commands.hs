@@ -11,6 +11,7 @@ import Language.Haskell.Exts.Annotated.Syntax hiding (String)
 import Scion.Browser
 import Scion.Browser.Build (updateDatabase)
 import Scion.Browser.Query
+import Scion.Browser.Util (logToStdout)
 import qualified Scion.Hoogle as H
 import Scion.Packages
 import System.Directory
@@ -48,12 +49,13 @@ executeCommand (LoadLocalDatabase path rebuild) =
                           case maybeDb of
                             Nothing    -> return M.empty
                             Just theDb -> return theDb)
+     lift $ logToStdout "Database loaded"
      newDb <- if not rebuild
                  then return curDb
                  else do pkgInfos' <- lift $ getPkgInfos
                          let pkgInfos = concat $ map snd pkgInfos'
                          newDb <- lift $ updateDatabase curDb pkgInfos
-                         lift $ putStrLn ("Saving on " ++ path)
+                         lift $ logToStdout ("Saving on " ++ path)
                          lift $ saveDatabase path newDb
                          return newDb
      modify (\s -> s { localDb = newDb, allDb = newDb, currentDb = newDb })
@@ -65,7 +67,7 @@ executeCommand (SetCurrentDatabase db)  =
        LocalDatabase -> do modify (\s -> s { currentDb = localDb s })
                            return $ String (T.pack "ok")
        APackage pid  -> do st <- get
-                           case getSingletonDatabase pid (localDb st) of
+                           case getSingletonDatabase pid (allDb st) of
                              Nothing    -> return $ String (T.pack "error")
                              Just newDb -> do modify (\s -> s { currentDb = newDb })
                                               return $ String (T.pack "ok")

@@ -52,19 +52,19 @@ createHackageDatabase tmp =
          tmpDir       = tmp </> "tmp-db"
      -- Parse Hoogle database
      createDirectoryIfMissing True hoogleDbDir
-     putStrLn "Started downloading Hoogle database"
+     logToStdout "Started downloading Hoogle database"
      Just hoogleDownloaded <- downloadFileLazy hoogleDbUrl
-     putStrLn "Uncompressing Hoogle database"
+     logToStdout "Uncompressing Hoogle database"
      unTarGzip hoogleDownloaded hoogleDbDir
-     putStrLn $ "Hoogle database is now in " ++ hoogleDbDir
+     logToStdout $ "Hoogle database is now in " ++ hoogleDbDir
      createDirectoryIfMissing True tmpDir
      (pkgs, errors) <- parseDirectory hoogleDbDir tmpDir
      -- Parse base package
      Just baseDownloaded <- downloadFileStrict baseDbUrl
-     putStrLn "Base database successfully downloaded"
+     logToStdout "Base database successfully downloaded"
      -- Parse ghc package
      Just ghcDownloaded <- downloadFileStrict ghcDbUrl
-     putStrLn "GHC database successfully downloaded"
+     logToStdout "GHC database successfully downloaded"
      let (dbBase, errorsBase) = case parseHoogleString "base.txt" baseDownloaded of
                                   Right b -> (b:pkgs, errors)
                                   Left  e -> (pkgs, ("base.txt", e):errors)
@@ -109,7 +109,7 @@ getCabalHoogleWithTmp :: PackageIdentifier -> FilePath -> IO (Either ParseError 
 getCabalHoogleWithTmp pid tmp = 
   do let pkgV = pkgString pid
          (PackageName pkg) = pkgName pid
-     putStrLn $ "Parsing " ++ pkgV
+     logToStdout $ "Parsing " ++ pkgV
      code <- executeCommand tmp "cabal" ["unpack", pkgV] True
      case code of
        ExitFailure _ -> return $ Left (newErrorMessage (Message "package not found")

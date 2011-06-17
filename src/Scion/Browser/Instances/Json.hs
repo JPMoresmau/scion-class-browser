@@ -31,7 +31,7 @@ instance ToJSON Version where
   toJSON = String . T.pack . showVersion
 
 instance FromJSON Version where
-  parseJSON version = (fst . head . readP_to_S parseVersion . T.unpack) <$> parseJSON version
+  parseJSON version = (fst . last . readP_to_S parseVersion . T.unpack) <$> parseJSON version
 
 instance ToJSON Doc where
   toJSON (NoDoc)   = Null

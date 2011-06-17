@@ -5,6 +5,7 @@ import qualified Data.Map as M
 import Distribution.Package hiding (Package)
 import Scion.Browser
 import System.Exit (ExitCode)
+import System.IO (hFlush, stdout)
 import System.Process
 import Text.Parsec.Error (ParseError)
 import GHC.Conc.Sync (numCapabilities)
@@ -41,4 +42,7 @@ partitionPackages ((_, Right pkg):xs)    = let (db, errors) = partitionPackages 
 -- |Converts a list of packages to a database
 pkgListToDb :: [Documented Package] -> Database
 pkgListToDb pkgs = M.fromList (map (\pkg -> (packageId pkg, pkg)) pkgs)
+
+logToStdout :: String -> IO ()
+logToStdout msg = putStrLn msg >> hFlush stdout
 
