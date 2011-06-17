@@ -78,7 +78,8 @@ executeCommand (GetModules mname)       = do db <- getCurrentDatabase
                                              let smods = getDocumentedModules (getSubmodules mname db)
                                              return $ toJSON smods
 executeCommand (GetDeclarations mname)  = do db <- getCurrentDatabase
-                                             let decls = concat $ map snd (getDeclsInModule mname db)
+                                             -- let decls = concat $ map snd (getDeclsInModule mname db)
+                                             let decls = getDeclsInModule mname db
                                              return $ toJSON decls
 executeCommand (HoogleQuery query)      = do db <- getCurrentDatabase
                                              results <- lift $ H.query db query

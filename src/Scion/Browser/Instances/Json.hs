@@ -58,23 +58,27 @@ instance ToJSON (Documented Module) where
                                                                                    ]
   toJSON _ = Null
 
+maybeEmptyContext :: Maybe (Documented Context) -> Documented Context
+maybeEmptyContext Nothing    = CxEmpty NoDoc
+maybeEmptyContext (Just ctx) = ctx
+
 instance ToJSON (Documented Decl) where
   toJSON (GDataDecl doc dOrM ctx hd kind decls _) = object [ T.pack "doc"      .= doc
                                                            , T.pack "type"     .= dOrM
-                                                           , T.pack "context"  .= ctx
+                                                           , T.pack "context"  .= maybeEmptyContext ctx
                                                            , T.pack "head"     .= hd
                                                            , T.pack "kind"     .= kind
                                                            , T.pack "decls"    .= decls
                                                            ]
   toJSON (ClassDecl doc ctx hd fdeps _)           = object [ T.pack "doc"      .= doc
                                                            , T.pack "type"     .= T.pack "class"
-                                                           , T.pack "context"  .= ctx
+                                                           , T.pack "context"  .= maybeEmptyContext ctx
                                                            , T.pack "head"     .= hd
                                                            , T.pack "fundeps"  .= fdeps
                                                            ]
   toJSON (InstDecl doc ctx hd _)                  = object [ T.pack "doc"      .= doc
                                                            , T.pack "type"     .= T.pack "instance"
-                                                           , T.pack "context"  .= ctx
+                                                           , T.pack "context"  .= maybeEmptyContext ctx
                                                            , T.pack "head"     .= hd
                                                            ]
   toJSON (TypeSig doc [name] ty)                  = object [ T.pack "doc"      .= doc
