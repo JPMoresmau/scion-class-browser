@@ -6,6 +6,7 @@ import Control.Monad
 import Data.Char (isControl)
 import Data.List (intercalate)
 import qualified Data.Map as M
+import Data.String.Utils (replace)
 import Distribution.Package (PackageIdentifier(..), PackageName(..))
 import Distribution.Version
 import Language.Haskell.Exts.Annotated.Syntax
@@ -63,11 +64,12 @@ package = do string "@package"
              return name
 
 version :: BSParser Version
-version = do string "@version"
-             spaces1
-             numbers <- number `sepBy` char '.'
-             restOfLine
-             return $ Version numbers []
+version = try (do string "@version"
+                  spaces1
+                  numbers <- number `sepBy` char '.'
+                  restOfLine
+                  return $ Version numbers [])
+          <|> (return $ Version [] [])
 
 module_ :: Doc -> BSParser (Documented Module)
 module_ doc = do string "module"
@@ -116,11 +118,68 @@ parseTypeMode = Parser.ParseMode "" knownExtensions False False Nothing
 
 parseType :: String -> BSParser (Documented Type)
 parseType st = do     
-                  let -- Parse using haskell-src-exts
-                      parsed = Parser.parseTypeWithMode parseTypeMode (eliminateUnwanted st)
+                  let parseString = eliminateUnwanted st
+                      -- Parse using haskell-src-exts
+                      parsed = Parser.parseTypeWithMode parseTypeMode parseString
                   case parsed of
-                    Parser.ParseFailed _ e -> unexpected $ e ++ " on '" ++ st ++ "'"
+                    Parser.ParseFailed _ e -> 
+                      -- HACK: parsing of # fails, try to replace it and parse again
+                      do let noHashString = theReplacements parseString 
+                             parsed' = Parser.parseTypeWithMode parseTypeMode noHashString
+                         case parsed' of
+                           Parser.ParseFailed _ _ -> unexpected $ e ++ " on '" ++ st ++ "'"
+                           Parser.ParseOk ty -> return $ mapOnNames theInverseReplacements (document NoDoc ty)
                     Parser.ParseOk ty -> return $ document NoDoc ty
+
+theReplacements :: (String -> String)
+theReplacements = (replace "#" "__HASH__") . (replace "[:" "__GHC_ARR_OPEN__") . (replace ":]" "__GHC_ARR_CLOSE__")
+
+theInverseReplacements :: (String -> String)
+theInverseReplacements = (replace "__HASH__" "#") . (replace "__GHC_ARR_OPEN__" ":]") . (replace "__GHC_ARR_CLOSE__" ":]")
+
+mapOnNames :: (String -> String) -> Documented Type -> Documented Type
+mapOnNames f (TyForall doc vars context ty) = TyForall doc
+                                                       (fmap (fmap (mapOnNamesTyVar f)) vars)
+                                                       (fmap (mapOnNamesContext f) context)
+                                                       (mapOnNames f ty)
+mapOnNames f (TyFun doc t1 t2) = TyFun doc (mapOnNames f t1) (mapOnNames f t2)
+mapOnNames f (TyTuple doc boxed tys) = TyTuple doc boxed (fmap (mapOnNames f) tys)
+mapOnNames f (TyList doc ty) = TyList doc (mapOnNames f ty)
+mapOnNames f (TyApp doc t1 t2) = TyApp doc (mapOnNames f t1) (mapOnNames f t2)
+mapOnNames f (TyVar doc name) = TyVar doc (mapOnNamesName f name)
+mapOnNames f (TyCon doc name) = TyCon doc (mapOnNamesQName f name)
+mapOnNames f (TyParen doc ty) = TyParen doc (mapOnNames f ty)
+mapOnNames f (TyInfix doc t1 name t2) = TyInfix doc (mapOnNames f t1) (mapOnNamesQName f name) (mapOnNames f t2)
+mapOnNames f (TyKind doc ty k) = TyKind doc (mapOnNames f ty) k
+
+mapOnNamesTyVar :: (String -> String) -> Documented TyVarBind -> Documented TyVarBind
+mapOnNamesTyVar f (KindedVar doc name k) = KindedVar doc (mapOnNamesName f name) k
+mapOnNamesTyVar f (UnkindedVar doc name) = UnkindedVar doc (mapOnNamesName f name)
+
+mapOnNamesName :: (String -> String) -> Documented Name -> Documented Name
+mapOnNamesName f (Ident doc s)  = Ident doc (f s)
+mapOnNamesName f (Symbol doc s) = Symbol doc (f s)
+
+mapOnNamesQName :: (String -> String) -> Documented QName -> Documented QName
+mapOnNamesQName f (Qual doc mname name) = Qual doc mname (mapOnNamesName f name)
+mapOnNamesQName f (UnQual doc name)     = UnQual doc (mapOnNamesName f name)
+mapOnNamesQName _ q@(Special _ _)       = q
+
+mapOnNamesContext :: (String -> String) -> Documented Context -> Documented Context
+mapOnNamesContext f (CxSingle doc asst) = CxSingle doc (mapOnNamesAsst f asst)
+mapOnNamesContext f (CxTuple doc assts) = CxTuple doc (fmap (mapOnNamesAsst f) assts)
+mapOnNamesContext f (CxParen doc ctx)   = CxParen doc (mapOnNamesContext f ctx)	 
+mapOnNamesContext _ (CxEmpty doc)       = CxEmpty doc
+
+mapOnNamesAsst :: (String -> String) -> Documented Asst -> Documented Asst
+mapOnNamesAsst f (ClassA doc name tys) = ClassA doc (mapOnNamesQName f name) (fmap (mapOnNames f) tys)
+mapOnNamesAsst f (InfixA doc ty1 name ty2) = InfixA doc (mapOnNames f ty1) (mapOnNamesQName f name) (mapOnNames f ty2)
+mapOnNamesAsst f (IParam doc name ty) = IParam doc (mapOnNamesIPName f name) (mapOnNames f ty)
+mapOnNamesAsst f (EqualP doc ty1 ty2) = EqualP doc (mapOnNames f ty1) (mapOnNames f ty2)
+
+mapOnNamesIPName :: (String -> String) -> Documented IPName -> Documented IPName
+mapOnNamesIPName f (IPDup doc s) = IPDup doc (f s)
+mapOnNamesIPName f (IPLin doc s) = IPLin doc (f s)
 
 -- HACK: Types with ! are not parsed by haskell-src-exts
 -- HACK: Control characters (like EOF) may appear

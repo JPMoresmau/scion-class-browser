@@ -47,8 +47,8 @@ getGhcInstalledVersion (_:xs) = getGhcInstalledVersion xs
 
 -- | Gets the url of a package from GHC libraries
 getPackageUrlGhcLibs :: Version -> PackageIdentifier -> String
-getPackageUrlGhcLibs ghcVersion (PackageIdentifier (PackageName name) _) =
-  "http://www.haskell.org/ghc/docs/" ++ showVersion ghcVersion ++ "/html/libraries/" ++ name ++ "/" ++ name ++ ".txt"
+getPackageUrlGhcLibs ghcVersion (PackageIdentifier (PackageName name) version) =
+  "http://www.haskell.org/ghc/docs/" ++ showVersion ghcVersion ++ "/html/libraries/" ++ name ++ "-" ++ showVersion version ++ "/" ++ name ++ ".txt"
 
 -- | Downloads the information for the entire Hackage database
 --   and saves it to the specified location.
@@ -123,17 +123,24 @@ createCabalDatabase ghcVersion pkgs =
 
 -- | Get the database from a Cabal package.
 getCabalHoogle :: Version -> PackageIdentifier -> FilePath -> IO (Either ParseError (Documented Package))
-getCabalHoogle ghcVersion pid tmp = do let downUrl1 = getPackageUrlHackage pid
-                                       logToStdout $ "Download " ++ downUrl1
-                                       tryDownload1 <- downloadHoogleFile downUrl1
-                                       case tryDownload1 of
-                                         Nothing   -> do let downUrl2 = getPackageUrlGhcLibs ghcVersion pid
-                                                         logToStdout $ "Download " ++ downUrl2
-                                                         tryDownload2 <- downloadHoogleFile downUrl2
-                                                         case tryDownload2 of
-                                                           Nothing   -> getCabalHoogleLocal pid tmp
-                                                           Just cnts -> return $ parseHoogleString "<package>" cnts
-                                         Just cnts -> return $ parseHoogleString "<package>" cnts
+getCabalHoogle ghcVersion pid tmp = do result <- getCabalHoogle' ghcVersion pid tmp
+                                       case result of
+                                         Left e                     -> return $ Left e
+                                         Right (Package doc _ info) -> return $ Right (Package doc pid info)
+
+-- | Get the database from a Cabal package.
+getCabalHoogle' :: Version -> PackageIdentifier -> FilePath -> IO (Either ParseError (Documented Package))
+getCabalHoogle' ghcVersion pid tmp = do let downUrl1 = getPackageUrlHackage pid
+                                        logToStdout $ "Download " ++ downUrl1
+                                        tryDownload1 <- downloadHoogleFile downUrl1
+                                        case tryDownload1 of
+                                          Nothing   -> do let downUrl2 = getPackageUrlGhcLibs ghcVersion pid
+                                                          logToStdout $ "Download " ++ downUrl2
+                                                          tryDownload2 <- downloadHoogleFile downUrl2
+                                                          case tryDownload2 of
+                                                            Nothing   -> getCabalHoogleLocal pid tmp
+                                                            Just cnts -> return $ parseHoogleString "<package>" cnts
+                                          Just cnts -> return $ parseHoogleString "<package>" cnts
 
 -- | Get the database from alocally installed Cabal package.
 getCabalHoogleLocal :: PackageIdentifier -> FilePath -> IO (Either ParseError (Documented Package))
