@@ -135,7 +135,7 @@ theReplacements :: (String -> String)
 theReplacements = (replace "#" "__HASH__") . (replace "[:" "__GHC_ARR_OPEN__") . (replace ":]" "__GHC_ARR_CLOSE__")
 
 theInverseReplacements :: (String -> String)
-theInverseReplacements = (replace "__HASH__" "#") . (replace "__GHC_ARR_OPEN__" ":]") . (replace "__GHC_ARR_CLOSE__" ":]")
+theInverseReplacements = (replace "__HASH__" "#") . (replace "__GHC_ARR_OPEN__" "[:") . (replace "__GHC_ARR_CLOSE__" ":]")
 
 mapOnNames :: (String -> String) -> Documented Type -> Documented Type
 mapOnNames f (TyForall doc vars context ty) = TyForall doc
