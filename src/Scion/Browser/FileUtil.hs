@@ -13,7 +13,7 @@ import System.FilePath
 
 -- Taken from Unixutils.
 import Control.Exception
-import Data.List (isSuffixOf)
+import Data.List (isSuffixOf, isPrefixOf)
 import System.Cmd
 import System.Directory
 import System.Exit
@@ -41,6 +41,16 @@ downloadFileStrict url = do res <- simpleHTTP (getRequest url)
                               Left _  -> return Nothing
                               Right r -> let response = rspBody r
                                          in  return $ Just (SBS8.pack response)
+
+-- |Downloads a file from the internet and check it's a Hoogle file.
+downloadHoogleFile :: String -> IO (Maybe SBS.ByteString)
+downloadHoogleFile url = do res <- simpleHTTP (getRequest url)
+                            case res of
+                              Left _  -> return Nothing
+                              Right r -> let response = rspBody r
+                                         in if "-- Hoogle documentation" `isPrefixOf` response
+                                               then return $ Just (SBS8.pack response)
+                                               else return Nothing
 
 -- |Un-gzip and un-tar a file into a folder.
 unTarGzip :: LBS.ByteString -> FilePath -> IO ()

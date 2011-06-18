@@ -11,7 +11,7 @@ import Control.DeepSeq
 import Data.Either (rights)
 import Data.List ((\\), nub)
 import qualified Data.Map as M
-import Data.Version (showVersion)
+import Data.Version (Version, showVersion)
 import Distribution.InstalledPackageInfo
 import Distribution.Package hiding (Package)
 import Scion.Browser
@@ -33,6 +33,22 @@ ghcDbUrl = "http://www.haskell.org/ghc/docs/latest/html/libraries/ghc/ghc.txt"
 
 hoogleDbUrl :: String
 hoogleDbUrl = "http://hackage.haskell.org/packages/archive/00-hoogle.tar.gz"
+
+-- | Gets the url of a package from Hackage
+getPackageUrlHackage :: PackageIdentifier -> String
+getPackageUrlHackage (PackageIdentifier (PackageName name) version) =
+  "http://hackage.haskell.org/packages/archive/" ++ name ++ "/" ++ showVersion version ++ "/doc/html/" ++ name ++ ".txt"
+
+-- | Gets the version of GHC used
+getGhcInstalledVersion :: [PackageIdentifier] -> Version
+getGhcInstalledVersion []     = error "No GHC found"
+getGhcInstalledVersion ((PackageIdentifier (PackageName "ghc") version):_) = version
+getGhcInstalledVersion (_:xs) = getGhcInstalledVersion xs
+
+-- | Gets the url of a package from GHC libraries
+getPackageUrlGhcLibs :: Version -> PackageIdentifier -> String
+getPackageUrlGhcLibs ghcVersion (PackageIdentifier (PackageName name) _) =
+  "http://www.haskell.org/ghc/docs/" ++ showVersion ghcVersion ++ "/html/libraries/" ++ name ++ "/" ++ name ++ ".txt"
 
 -- | Downloads the information for the entire Hackage database
 --   and saves it to the specified location.
@@ -80,7 +96,11 @@ updateDatabase oldDb pkgInfo = do let dbList        = nub $ map fst $ M.toList o
                                       toRemove      = dbList \\ installedList
                                       toAdd         = installedList \\ dbList
                                       filteredDb    = foldr (\pid db -> M.delete pid db) oldDb toRemove
-                                  (addedDb, _) <- createCabalDatabase toAdd
+                                  let ghcVersion = getGhcInstalledVersion installedList
+                                  logToStdout $ "Adding " 
+                                             ++ show (map (\(PackageIdentifier (PackageName name) _) -> name) toAdd)
+                                  (addedDb, errors) <- createCabalDatabase ghcVersion toAdd
+                                  logToStdout $ show errors
                                   return $ M.union filteredDb addedDb
 
 removeSmallVersions :: [PackageIdentifier] -> [PackageIdentifier]
@@ -90,10 +110,10 @@ removeSmallVersions pids = filter
   pids
 
 -- | Get the database from a set of Cabal packages.
-createCabalDatabase :: [PackageIdentifier] -> IO (Database, [(String, ParseError)])
-createCabalDatabase pkgs =
+createCabalDatabase :: Version -> [PackageIdentifier] -> IO (Database, [(String, ParseError)])
+createCabalDatabase ghcVersion pkgs =
   withTemporaryDirectory "scionXXXXXX" $ \tmp ->
-    do let toExecute = map (\pid -> do db <- getCabalHoogleWithTmp pid tmp
+    do let toExecute = map (\pid -> do db <- getCabalHoogle ghcVersion pid tmp
                                        return (pkgString pid, db))
                            pkgs
        eitherHooglePkgs <- withThreaded $ \pool -> parallelInterleavedE pool toExecute
@@ -102,11 +122,22 @@ createCabalDatabase pkgs =
        return (db `deepseq` pkgListToDb db, errors)
 
 -- | Get the database from a Cabal package.
-getCabalHoogle :: PackageIdentifier -> IO (Either ParseError (Documented Package))
-getCabalHoogle pid = do withTemporaryDirectory "scionXXXXXX" (getCabalHoogleWithTmp pid)
+getCabalHoogle :: Version -> PackageIdentifier -> FilePath -> IO (Either ParseError (Documented Package))
+getCabalHoogle ghcVersion pid tmp = do let downUrl1 = getPackageUrlHackage pid
+                                       logToStdout $ "Download " ++ downUrl1
+                                       tryDownload1 <- downloadHoogleFile downUrl1
+                                       case tryDownload1 of
+                                         Nothing   -> do let downUrl2 = getPackageUrlGhcLibs ghcVersion pid
+                                                         logToStdout $ "Download " ++ downUrl2
+                                                         tryDownload2 <- downloadHoogleFile downUrl2
+                                                         case tryDownload2 of
+                                                           Nothing   -> getCabalHoogleLocal pid tmp
+                                                           Just cnts -> return $ parseHoogleString "<package>" cnts
+                                         Just cnts -> return $ parseHoogleString "<package>" cnts
 
-getCabalHoogleWithTmp :: PackageIdentifier -> FilePath -> IO (Either ParseError (Documented Package))
-getCabalHoogleWithTmp pid tmp = 
+-- | Get the database from alocally installed Cabal package.
+getCabalHoogleLocal :: PackageIdentifier -> FilePath -> IO (Either ParseError (Documented Package))
+getCabalHoogleLocal pid tmp = 
   do let pkgV = pkgString pid
          (PackageName pkg) = pkgName pid
      logToStdout $ "Parsing " ++ pkgV
