@@ -122,12 +122,12 @@ parseType st = do
                       -- Parse using haskell-src-exts
                       parsed = Parser.parseTypeWithMode parseTypeMode parseString
                   case parsed of
-                    Parser.ParseFailed _ e -> 
+                    Parser.ParseFailed _ _ -> 
                       -- HACK: parsing of # fails, try to replace it and parse again
                       do let noHashString = theReplacements parseString 
                              parsed' = Parser.parseTypeWithMode parseTypeMode noHashString
                          case parsed' of
-                           Parser.ParseFailed _ _ -> unexpected $ e ++ " on '" ++ st ++ "'"
+                           Parser.ParseFailed _ _ -> return $ TyVar NoDoc (Ident NoDoc "not parsed")
                            Parser.ParseOk ty -> return $ mapOnNames theInverseReplacements (document NoDoc ty)
                     Parser.ParseOk ty -> return $ document NoDoc ty
 
