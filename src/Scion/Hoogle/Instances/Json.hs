@@ -10,17 +10,17 @@ instance (ToJSON a, ToJSON b, ToJSON c, ToJSON d) => ToJSON (a,b,c,d) where
     {-# INLINE toJSON #-}
 
 instance ToJSON (Result) where
-  toJSON (RPackage pids)      = object [ T.pack "type"         .= "package"
-                                       , T.pack "packages"     .= pids
+  toJSON (RPackage pids)      = object [ T.pack "type"    .= "package"
+                                       , T.pack "results" .= pids
                                        ]
-  toJSON (RModule mods)       = object [ T.pack "type"         .= "module"
-                                       , T.pack "modules"      .= mods
+  toJSON (RModule mds)        = object [ T.pack "type"    .= "module"
+                                       , T.pack "results" .= mds
                                        ]
-  toJSON (RDeclaration decls) = object [ T.pack "type"         .= "declaration"
-                                       , T.pack "declarations" .= decls
+  toJSON (RDeclaration decls) = object [ T.pack "type"    .= "declaration"
+                                       , T.pack "results" .= decls
                                        ]
-  toJSON (RConstructor decls) = object [ T.pack "type"         .= "constructor"
-                                       , T.pack "constructors" .= decls
+  toJSON (RConstructor decls) = object [ T.pack "type"    .= "constructor"
+                                       , T.pack "results" .= decls
                                        ]
 
 instance FromJSON (Query) where

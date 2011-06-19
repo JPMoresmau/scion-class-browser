@@ -74,7 +74,7 @@ convertHalfToResult db (HalfModule   mname _)   = case findPackagesForModule db 
                                                     []  -> Nothing
                                                     mds -> Just $ RModule mds
 convertHalfToResult db (HalfDecl     mname dcl) = let pidMods = findPackagesForModule db mname
-                                                  in case findDeclsInModules pidMods (getName dcl) of
+                                                  in case findDeclsInModules pidMods dcl of
                                                        []    -> Nothing
                                                        decls -> Just $ RDeclaration decls
 convertHalfToResult db (HalfGadtDecl mname dcl) = let pidMods = findPackagesForModule db mname
@@ -87,14 +87,14 @@ findPackagesForModule :: Database -> String -> [(PackageIdentifier, Documented M
 findPackagesForModule db md = let pkgs = M.filter (\(Package _ _ mds) -> M.member md mds) db
                               in  M.toAscList $ M.map (\(Package _ _ mds) -> fromJust $ M.lookup md mds) pkgs
 
-findDeclsInModules :: [(PackageIdentifier, Documented Module)] -> String -> [(PackageIdentifier, String, Documented Decl)]
+findDeclsInModules :: [(PackageIdentifier, Documented Module)] -> Documented Decl -> [(PackageIdentifier, String, Documented Decl)]
 findDeclsInModules pidMods declName = foldr (\pidMod lst -> case findDeclInModule pidMod declName of
                                                                    Nothing -> lst
                                                                    Just d  -> d:lst)
                                             [] pidMods
 
-findDeclInModule :: (PackageIdentifier, Documented Module) -> String -> Maybe (PackageIdentifier, String, Documented Decl)
-findDeclInModule (pid, md@(Module _ _ _ _ decls)) dname = case find (\d -> (getName d) == dname) decls of
+findDeclInModule :: (PackageIdentifier, Documented Module) -> Documented Decl -> Maybe (PackageIdentifier, String, Documented Decl)
+findDeclInModule (pid, md@(Module _ _ _ _ decls)) dname = case find (\d -> (fmap (const "") d) == (fmap (const "") dname)) decls of
                                                             Nothing -> Nothing
                                                             Just d  -> Just (pid, getName md, d)
 findDeclInModule _ _ = error "The impossible happened"
