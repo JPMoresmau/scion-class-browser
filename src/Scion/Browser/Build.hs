@@ -98,7 +98,7 @@ updateDatabase oldDb pkgInfo = do let dbList        = nub $ map fst $ M.toList o
                                       filteredDb    = foldr (\pid db -> M.delete pid db) oldDb toRemove
                                   let ghcVersion = getGhcInstalledVersion installedList
                                   logToStdout $ "Adding " ++ show (map (\(PackageIdentifier (PackageName name) _) -> name) toAdd)
-                                  (addedDb, errors) <- createCabalDatabase ghcVersion toAdd
+                                  (addedDb, _) <- createCabalDatabase' ghcVersion toAdd True
                                   -- logToStdout $ show errors
                                   return $ M.union filteredDb addedDb
 
@@ -110,9 +110,15 @@ removeSmallVersions pids = filter
 
 -- | Get the database from a set of Cabal packages.
 createCabalDatabase :: Version -> [PackageIdentifier] -> IO (Database, [(String, ParseError)])
-createCabalDatabase ghcVersion pkgs =
+createCabalDatabase ghcVersion pkgs = createCabalDatabase' ghcVersion pkgs False
+
+-- | Get the database from a set of Cabal packages.
+--   If `ifFailCreateEmpty' is set, when a package gives a parse error,
+--   it is converted into an empty package with a note.
+createCabalDatabase' :: Version -> [PackageIdentifier] -> Bool -> IO (Database, [(String, ParseError)])
+createCabalDatabase' ghcVersion pkgs ifFailCreateEmpty =
   withTemporaryDirectory "scionXXXXXX" $ \tmp ->
-    do let toExecute = map (\pid -> do db <- getCabalHoogle ghcVersion pid tmp
+    do let toExecute = map (\pid -> do db <- getCabalHoogle ghcVersion pid ifFailCreateEmpty tmp
                                        return (pkgString pid, db))
                            pkgs
        eitherHooglePkgs <- withThreaded $ \pool -> parallelInterleavedE pool toExecute
@@ -121,11 +127,14 @@ createCabalDatabase ghcVersion pkgs =
        return (db `deepseq` pkgListToDb db, errors)
 
 -- | Get the database from a Cabal package.
-getCabalHoogle :: Version -> PackageIdentifier -> FilePath -> IO (Either ParseError (Documented Package))
-getCabalHoogle ghcVersion pid tmp = do result <- getCabalHoogle' ghcVersion pid tmp
-                                       case result of
-                                         Left e                     -> return $ Left e
-                                         Right (Package doc _ info) -> return $ Right (Package doc pid info)
+getCabalHoogle :: Version -> PackageIdentifier -> Bool -> FilePath -> IO (Either ParseError (Documented Package))
+getCabalHoogle ghcVersion pid ifFailCreateEmpty tmp = 
+  do result <- getCabalHoogle' ghcVersion pid tmp
+     case result of
+       Left e                     -> return $ if ifFailCreateEmpty
+                                                 then Right (Package NoDoc pid M.empty)
+                                                 else Left e
+       Right (Package doc _ info) -> return $ Right (Package doc pid info)
 
 -- | Get the database from a Cabal package.
 getCabalHoogle' :: Version -> PackageIdentifier -> FilePath -> IO (Either ParseError (Documented Package))
@@ -141,7 +150,7 @@ getCabalHoogle' ghcVersion pid tmp = do let downUrl1 = getPackageUrlHackage pid
                                                             Just cnts -> return $ parseHoogleString "<package>" cnts
                                           Just cnts -> return $ parseHoogleString "<package>" cnts
 
--- | Get the database from alocally installed Cabal package.
+-- | Get the database from a locally installed Cabal package.
 getCabalHoogleLocal :: PackageIdentifier -> FilePath -> IO (Either ParseError (Documented Package))
 getCabalHoogleLocal pid tmp = 
   do let pkgV = pkgString pid
