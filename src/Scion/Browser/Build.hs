@@ -53,7 +53,7 @@ getPackageUrlGhcLibs ghcVersion (PackageIdentifier (PackageName name) version) =
 -- | Downloads the information for the entire Hackage database
 --   and saves it to the specified location.
 saveHackageDatabase :: FilePath -> IO ()
-saveHackageDatabase file = withTemporaryDirectory "scionXXXXXX" (saveHackageDatabaseWithTmp file)
+saveHackageDatabase file = withTemporaryDirectory (saveHackageDatabaseWithTmp file)
 
 saveHackageDatabaseWithTmp :: FilePath -> FilePath -> IO ()
 saveHackageDatabaseWithTmp file tmp = do (db, _) <- createHackageDatabase tmp
@@ -117,7 +117,7 @@ createCabalDatabase ghcVersion pkgs = createCabalDatabase' ghcVersion pkgs False
 --   it is converted into an empty package with a note.
 createCabalDatabase' :: Version -> [PackageIdentifier] -> Bool -> IO (Database, [(String, ParseError)])
 createCabalDatabase' ghcVersion pkgs ifFailCreateEmpty =
-  withTemporaryDirectory "scionXXXXXX" $ \tmp ->
+  withTemporaryDirectory $ \tmp ->
     do let toExecute = map (\pid -> do db <- getCabalHoogle ghcVersion pid ifFailCreateEmpty tmp
                                        return (pkgString pid, db))
                            pkgs
