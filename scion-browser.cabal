@@ -15,7 +15,6 @@ library
     Cabal            >= 0.10, 
     haskell-src-exts >= 1.11 && < 2,
     process          >= 1 && < 2,
-    unix             >= 2 && < 3,
     tar              == 0.3.*,
     zlib             == 0.5.*,
     HTTP             >= 4000 && < 5000,
@@ -26,7 +25,7 @@ library
     -- For Scion.packages (provisional)
     ghc-paths        == 0.1.*
   
-  if !arch(mingw32)
+  if !os(mingw32)
     build-depends:
       unix           >= 2 && < 3
   
@@ -80,7 +79,7 @@ executable scion-browser
     -- For Scion.packages (provisional)
     ghc-paths        == 0.1.*
   
-  if !arch(mingw32)
+  if !os(mingw32)
     build-depends:
       unix           >= 2 && < 3
   
