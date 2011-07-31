@@ -22,6 +22,7 @@ data Command = LoadLocalDatabase FilePath Bool
              | GetModules String
              | GetDeclarations String
              | HoogleQuery String
+             | HoogleDownloadData
 
 data CurrentDatabase = AllPackages
                      | HackageDatabase
@@ -84,6 +85,8 @@ executeCommand (GetDeclarations mname)  = do db <- getCurrentDatabase
 executeCommand (HoogleQuery query)      = do db <- getCurrentDatabase
                                              results <- lift $ H.query db query
                                              return $ toJSON results
+executeCommand HoogleDownloadData       = do _ <- lift $ H.downloadData
+                                             return $ String (T.pack "ok")
 
 getCurrentDatabase :: BrowserM Database
 getCurrentDatabase = do s <- get
@@ -113,6 +116,7 @@ instance FromJSON Command where
                                "get-modules"      -> GetModules <$> v .: T.pack "module"
                                "get-declarations" -> GetDeclarations <$> v .: T.pack "module"
                                "hoogle-query"     -> HoogleQuery <$> v .: T.pack "query"
+                               "hoogle-data"      -> pure HoogleDownloadData
                                _                  -> mzero
                            _ -> mzero
   parseJSON _          = mzero
