@@ -73,7 +73,7 @@ getHoogleBinPath2 path = let (_:(_:rest)) = reverse $ splitDirectories path
 #ifdef mingw32_HOST_OS
 getHoogleBinPath3 :: IO (Maybe String)
 getHoogleBinPath3 = do cabalDir <- getAppUserDataDirectory "cabal"
-                       return $ Just (cabalDir </> bin </> "hoogle" <.> exeExtension)
+                       return $ Just (cabalDir </> "bin" </> "hoogle" <.> exeExtension)
 #endif
 
 exeExtension :: String
