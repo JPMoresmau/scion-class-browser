@@ -1,3 +1,5 @@
+{-# OPTIONS -cpp #-}
+
 module Scion.Hoogle.Util
 ( findHoogleBinPath
 ) where
@@ -7,15 +9,45 @@ import Distribution.InstalledPackageInfo
 import Distribution.Package
 import Scion.Packages
 import System.FilePath
+import System.Directory (doesFileExist)
+
+#ifdef mingw32_HOST_OS
+import System.Directory (getAppUserDataDirectory)
+#endif
 
 -- Functions for finding Hoogle in the system
 
 findHoogleBinPath :: IO (Maybe String)
-findHoogleBinPath = do minfo <- findHoogleInfo
-                       case minfo of
-                         Nothing   -> return Nothing
-                         Just info -> let [libDir] = libraryDirs info
-                                      in  return $ Just (getHoogleBinPath libDir)
+findHoogleBinPath = findPathsAndCheck placesToSearch
+                    where placesToSearch = [ findHoogleBinInLibrary getHoogleBinPath1
+                                           , findHoogleBinInLibrary getHoogleBinPath2
+#ifdef mingw32_HOST_OS
+                                           , getHoogleBinPath3
+#endif
+                                           ]
+
+findPathsAndCheck :: [IO (Maybe String)] -> IO (Maybe String)
+findPathsAndCheck []     = return Nothing
+findPathsAndCheck (f:fs) = do r <- findPathAndCheck f
+                              case r of
+                                Nothing -> findPathsAndCheck fs
+                                _       -> return r
+
+findPathAndCheck :: IO (Maybe String) -> IO (Maybe String)
+findPathAndCheck f = do p <- f
+                        case p of
+                          Nothing   -> return Nothing
+                          Just path -> do exists <- doesFileExist path
+                                          if exists
+                                             then return (Just path)
+                                             else return Nothing
+
+findHoogleBinInLibrary :: (String -> String) -> IO (Maybe String)
+findHoogleBinInLibrary f = do minfo <- findHoogleInfo
+                              case minfo of
+                                Nothing   -> return Nothing
+                                Just info -> let [libDir] = libraryDirs info
+                                             in  return $ Just (f libDir)
 
 findHoogleInfo :: IO (Maybe InstalledPackageInfo)
 findHoogleInfo = do infos' <- getPkgInfos
@@ -30,9 +62,26 @@ removeSmallVersions pids = filter
                  pids))
   pids
 
-getHoogleBinPath :: String -> String
-getHoogleBinPath path = let (_:(_:(_:rest))) = reverse $ splitDirectories path
-                        in  (joinPath $ reverse ("bin":rest)) </> "hoogle"
+getHoogleBinPath1 :: String -> String
+getHoogleBinPath1 path = let (_:(_:(_:rest))) = reverse $ splitDirectories path
+                         in  (joinPath $ reverse ("bin":rest)) </> "hoogle" <.> exeExtension
+
+getHoogleBinPath2 :: String -> String
+getHoogleBinPath2 path = let (_:(_:rest)) = reverse $ splitDirectories path
+                         in  (joinPath $ reverse ("bin":rest)) </> "hoogle" <.> exeExtension
+
+#ifdef mingw32_HOST_OS
+getHoogleBinPath3 :: IO (Maybe String)
+getHoogleBinPath3 = do cabalDir <- getAppUserDataDirectory "cabal"
+                       return $ Just (cabalDir </> bin </> "hoogle" <.> exeExtension)
+#endif
+
+exeExtension :: String
+#ifdef mingw32_HOST_OS
+exeExtension = "exe"
+#else
+exeExtension = ""
+#endif
 
 -- This part is commented out because Cabal does not work
 -- well linking with the Hoogle library.
