@@ -7,6 +7,7 @@ module Scion.Browser.Query
 , getModules
 , getSubmodules
 , getDeclsInModule
+, getModulesWhereDeclarationIs
 ) where
 
 import Data.List (isPrefixOf, stripPrefix)
@@ -92,4 +93,18 @@ getDeclsInModuleFromPackage modName (Package _ _ modMap) =
   case M.lookup modName modMap of
     Just (Module _ _ _ _ decls) -> decls
     _                           -> []
+
+-- | Gets a list of modules where a declaration may live
+getModulesWhereDeclarationIs :: String -> Database -> [Documented Module]
+getModulesWhereDeclarationIs decl db = M.fold (\v lst -> (getModulesWhereDeclarationIsInPackage decl v) ++ lst) [] db
+
+getModulesWhereDeclarationIsInPackage :: String -> Documented Package -> [Documented Module]
+getModulesWhereDeclarationIsInPackage decl (Package _ _ modMap) = M.elems $ M.filter (moduleHasDecl decl) modMap
+
+moduleHasDecl :: String -> Documented Module -> Bool
+moduleHasDecl decl (Module _ _ _ _ decls) = isDeclName decls
+  where isDeclName []      = False
+        isDeclName (x:xs)  = getName x == decl || isChildName (getChildren x) || isDeclName xs
+        isChildName []     = False
+        isChildName (x:xs) = getName x == decl || isChildName xs
 

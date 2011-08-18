@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Server.Commands where
 
 import Control.Applicative
@@ -23,6 +25,7 @@ data Command = LoadLocalDatabase FilePath Bool
              | GetDeclarations String
              | HoogleQuery String
              | HoogleDownloadData
+             | GetDeclarationModules String
 
 data CurrentDatabase = AllPackages
                      | HackageDatabase
@@ -73,20 +76,23 @@ executeCommand (SetCurrentDatabase db)  =
                              Just newDb -> do modify (\s -> s { currentDb = newDb })
                                               return $ String (T.pack "ok")
        _             -> return $ String (T.pack "not implemented")
-executeCommand GetPackages              = do db <- getCurrentDatabase
-                                             return $ toJSON (allPackages db)
-executeCommand (GetModules mname)       = do db <- getCurrentDatabase
-                                             let smods = getDocumentedModules (getSubmodules mname db)
-                                             return $ toJSON smods
-executeCommand (GetDeclarations mname)  = do db <- getCurrentDatabase
-                                             -- let decls = concat $ map snd (getDeclsInModule mname db)
-                                             let decls = getDeclsInModule mname db
-                                             return $ toJSON decls
-executeCommand (HoogleQuery query)      = do db <- getCurrentDatabase
-                                             results <- lift $ H.query db query
-                                             return $ toJSON results
-executeCommand HoogleDownloadData       = do _ <- lift $ H.downloadData
-                                             return $ String (T.pack "ok")
+executeCommand GetPackages               = do db <- getCurrentDatabase
+                                              return $ toJSON (allPackages db)
+executeCommand (GetModules mname)        = do db <- getCurrentDatabase
+                                              let smods = getDocumentedModules (getSubmodules mname db)
+                                              return $ toJSON smods
+executeCommand (GetDeclarations mname)   = do db <- getCurrentDatabase
+                                              -- let decls = concat $ map snd (getDeclsInModule mname db)
+                                              let decls = getDeclsInModule mname db
+                                              return $ toJSON decls
+executeCommand (HoogleQuery query)       = do db <- getCurrentDatabase
+                                              results <- lift $ H.query db query
+                                              return $ toJSON results
+executeCommand HoogleDownloadData        = do _ <- lift $ H.downloadData
+                                              return $ String (T.pack "ok")
+executeCommand (GetDeclarationModules d) = do db <- getCurrentDatabase
+                                              let mods = getModulesWhereDeclarationIs d db
+                                              return $ toJSON mods
 
 getCurrentDatabase :: BrowserM Database
 getCurrentDatabase = do s <- get
@@ -109,14 +115,15 @@ instance FromJSON Command where
   parseJSON (Object v) = case M.lookup (T.pack "command") v of
                            Just (String e) ->
                              case T.unpack e of
-                               "load-local-db"    -> LoadLocalDatabase <$> v .: T.pack "filepath"
-                                                                       <*> v .: T.pack "rebuild"
+                               "load-local-db"    -> LoadLocalDatabase <$> v .: "filepath"
+                                                                       <*> v .: "rebuild"
                                "get-packages"     -> pure GetPackages
-                               "set-current-db"   -> SetCurrentDatabase <$> v .: T.pack "new-db"
-                               "get-modules"      -> GetModules <$> v .: T.pack "module"
-                               "get-declarations" -> GetDeclarations <$> v .: T.pack "module"
-                               "hoogle-query"     -> HoogleQuery <$> v .: T.pack "query"
+                               "set-current-db"   -> SetCurrentDatabase <$> v .: "new-db"
+                               "get-modules"      -> GetModules <$> v .: "module"
+                               "get-declarations" -> GetDeclarations <$> v .: "module"
+                               "hoogle-query"     -> HoogleQuery <$> v .: "query"
                                "hoogle-data"      -> pure HoogleDownloadData
+                               "get-decl-module"  -> GetDeclarationModules <$> v .: "decl"
                                _                  -> mzero
                            _ -> mzero
   parseJSON _          = mzero
