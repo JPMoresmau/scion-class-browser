@@ -179,9 +179,9 @@ cxEmpty = CxEmpty noDoc
 
 instance Serialize (Documented Context) where
   -- Possible values
-  -- CxSingle l (Asst l)	 
-  -- CxTuple l [Asst l]	 
-  -- CxParen l (Context l)	 
+  -- CxSingle l (Asst l)         
+  -- CxTuple l [Asst l]         
+  -- CxParen l (Context l)         
   -- CxEmpty l
   put (CxSingle _ a)  = put [a]
   put (CxTuple _ as)  = put as
@@ -196,8 +196,8 @@ instance Serialize (Documented Context) where
 instance Serialize (Documented Asst) where
   -- Possible values
   -- ClassA l (QName l) [Type l]
-  -- InfixA l (Type l) (QName l) (Type l)	
-  -- IParam l (IPName l) (Type l)	
+  -- InfixA l (Type l) (QName l) (Type l)        
+  -- IParam l (IPName l) (Type l)        
   -- EqualP l (Type l) (Type l)
   put (ClassA _ name tys) = do putWord8 0
                                put name
