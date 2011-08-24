@@ -19,10 +19,10 @@ loop = do maybeLine <- getInputLine ""
             Nothing -> return () -- ctrl+D or EOF
             Just line -> do
               case Atto.parse json (BS.pack line) of
-                Atto.Fail _ _ e   -> outputStrLn ("error in command: " ++ e)
+                Atto.Fail _ _ e   -> outputStrLn ("error in command: " ++ e) >> loop
                 Atto.Done _ value -> case T.parse parseJSON value of
-                                       Error e     -> outputStrLn ("error in command: " ++ e)
-                                       Success cmd -> do res <- lift $ executeCommand cmd
+                                       Error e     -> outputStrLn ("error in command: " ++ e) >> loop
+                                       Success cmd -> do (res, continue) <- lift $ executeCommand cmd
                                                          outputStrLn $ LBS.unpack (encode res)
-          loop
+                                                         if continue then loop else return ()
 

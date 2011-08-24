@@ -26,6 +26,7 @@ data Command = LoadLocalDatabase FilePath Bool
              | HoogleQuery String
              | HoogleDownloadData
              | GetDeclarationModules String
+             | Quit
 
 data CurrentDatabase = AllPackages
                      | HackageDatabase
@@ -43,7 +44,7 @@ initialState = BrowserState M.empty M.empty M.empty
 
 type BrowserM = StateT BrowserState IO
 
-executeCommand :: Command -> BrowserM Value
+executeCommand :: Command -> BrowserM (Value, Bool)  -- Bool indicates if continue receiving commands
 executeCommand (LoadLocalDatabase path rebuild) =
   do fileExists <- lift $ doesFileExist path
      let fileExists' = fileExists `seq` fileExists
@@ -63,36 +64,37 @@ executeCommand (LoadLocalDatabase path rebuild) =
                          lift $ saveDatabase path newDb
                          return newDb
      modify (\s -> s { localDb = newDb, allDb = newDb, currentDb = newDb })
-     return $ String (T.pack "ok")
+     return (String "ok", True)
 executeCommand (SetCurrentDatabase db)  =
   do case db of
        AllPackages   -> do modify (\s -> s { currentDb = localDb s })
-                           return $ String (T.pack "ok")
+                           return (String "ok", True)
        LocalDatabase -> do modify (\s -> s { currentDb = localDb s })
-                           return $ String (T.pack "ok")
+                           return (String "ok", True)
        APackage pid  -> do st <- get
                            case getSingletonDatabase pid (allDb st) of
-                             Nothing    -> return $ String (T.pack "error")
+                             Nothing    -> return (String "error", True)
                              Just newDb -> do modify (\s -> s { currentDb = newDb })
-                                              return $ String (T.pack "ok")
-       _             -> return $ String (T.pack "not implemented")
+                                              return (String "ok", True)
+       _             -> return (String (T.pack "not implemented"), True)
 executeCommand GetPackages               = do db <- getCurrentDatabase
-                                              return $ toJSON (allPackages db)
+                                              return (toJSON (allPackages db), True)
 executeCommand (GetModules mname)        = do db <- getCurrentDatabase
                                               let smods = getDocumentedModules (getSubmodules mname db)
-                                              return $ toJSON smods
+                                              return (toJSON smods, True)
 executeCommand (GetDeclarations mname)   = do db <- getCurrentDatabase
                                               -- let decls = concat $ map snd (getDeclsInModule mname db)
                                               let decls = getDeclsInModule mname db
-                                              return $ toJSON decls
+                                              return (toJSON decls, True)
 executeCommand (HoogleQuery query)       = do db <- getCurrentDatabase
                                               results <- lift $ H.query db query
-                                              return $ toJSON results
+                                              return (toJSON results, True)
 executeCommand HoogleDownloadData        = do _ <- lift $ H.downloadData
-                                              return $ String (T.pack "ok")
+                                              return (String "ok", True)
 executeCommand (GetDeclarationModules d) = do db <- getCurrentDatabase
                                               let mods = getModulesWhereDeclarationIs d db
-                                              return $ toJSON mods
+                                              return (toJSON mods, True)
+executeCommand Quit                      = return (String "ok", False)
 
 getCurrentDatabase :: BrowserM Database
 getCurrentDatabase = do s <- get
@@ -124,6 +126,7 @@ instance FromJSON Command where
                                "hoogle-query"     -> HoogleQuery <$> v .: "query"
                                "hoogle-data"      -> pure HoogleDownloadData
                                "get-decl-module"  -> GetDeclarationModules <$> v .: "decl"
+                               "quit"             -> pure Quit
                                _                  -> mzero
                            _ -> mzero
   parseJSON _          = mzero
