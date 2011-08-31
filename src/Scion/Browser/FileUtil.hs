@@ -10,7 +10,9 @@ import qualified Data.ByteString.Char8 as SBS8
 import qualified Data.ByteString.Lazy as LBS
 import qualified Data.ByteString.Lazy.Char8 as LBS8
 import Data.List (isPrefixOf)
+import Network.Browser
 import Network.HTTP
+import Network.HTTP.Proxy
 import System.Directory
 import System.FilePath
 import Scion.Browser.TempFile
@@ -22,30 +24,33 @@ filterDots = filter (\d -> d /= "." && d /= "..")
 
 -- |Downloads a file from the internet.
 downloadFileLazy :: String -> IO (Maybe LBS.ByteString)
-downloadFileLazy url = do res <- simpleHTTP (getRequest url)
-                          case res of
-                            Left _  -> return Nothing
-                            Right r -> let response = rspBody r
-                                       in  return $ Just (LBS8.pack response)
+downloadFileLazy url = do 
+                        response <- fetchURL url
+                        return $ Just (LBS8.pack response)
 
 -- |Downloads a file from the internet.
 downloadFileStrict :: String -> IO (Maybe SBS.ByteString)
-downloadFileStrict url = do res <- simpleHTTP (getRequest url)
-                            case res of
-                              Left _  -> return Nothing
-                              Right r -> let response = rspBody r
-                                         in  return $ Just (SBS8.pack response)
+downloadFileStrict url = do 
+                        response <- fetchURL url
+                        return $ Just (SBS8.pack response)
 
 -- |Downloads a file from the internet and check it's a Hoogle file.
 downloadHoogleFile :: String -> IO (Maybe SBS.ByteString)
-downloadHoogleFile url = do res <- simpleHTTP (getRequest url)
-                            case res of
-                              Left _  -> return Nothing
-                              Right r -> let response = rspBody r
-                                         in if "-- Hoogle documentation" `isPrefixOf` response
+downloadHoogleFile url = do 
+                            response <- fetchURL url
+                            if "-- Hoogle documentation" `isPrefixOf` response
                                                then return $ Just (SBS8.pack response)
                                                else return Nothing
 
+-- |Downloads a file from the internetn, using the system proxy
+fetchURL :: String -> IO (String)
+fetchURL url=do
+            pr<-fetchProxy False
+            (_,res) <- browse $ do 
+                setProxy pr 
+                request $ getRequest url
+            return $ rspBody res
+                            
 -- |Un-gzip and un-tar a file into a folder.
 unTarGzip :: LBS.ByteString -> FilePath -> IO ()
 unTarGzip cnts folder = let ungzip  = GZip.decompress cnts
