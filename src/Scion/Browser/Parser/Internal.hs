@@ -1,5 +1,4 @@
-{-# LANGUAGE RankNTypes #-}
-
+{-# LANGUAGE RankNTypes,UnicodeSyntax #-}
 module Scion.Browser.Parser.Internal where
 
 import Control.Monad
@@ -168,7 +167,7 @@ mapOnNamesQName _ q@(Special _ _)       = q
 mapOnNamesContext :: (String -> String) -> Documented Context -> Documented Context
 mapOnNamesContext f (CxSingle doc asst) = CxSingle doc (mapOnNamesAsst f asst)
 mapOnNamesContext f (CxTuple doc assts) = CxTuple doc (fmap (mapOnNamesAsst f) assts)
-mapOnNamesContext f (CxParen doc ctx)   = CxParen doc (mapOnNamesContext f ctx)	 
+mapOnNamesContext f (CxParen doc ctx)   = CxParen doc (mapOnNamesContext f ctx)         
 mapOnNamesContext _ (CxEmpty doc)       = CxEmpty doc
 
 mapOnNamesAsst :: (String -> String) -> Documented Asst -> Documented Asst
