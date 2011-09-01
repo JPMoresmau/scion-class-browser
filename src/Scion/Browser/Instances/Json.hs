@@ -81,9 +81,9 @@ instance ToJSON (Documented Decl) where
                                                            , T.pack "context"  .= maybeEmptyContext ctx
                                                            , T.pack "head"     .= hd
                                                            ]
-  toJSON (TypeSig doc [name] ty)                  = object [ T.pack "doc"      .= doc
+  toJSON (TypeSig doc names ty)                  = object [ T.pack "doc"      .= doc
                                                            , T.pack "type"     .= T.pack "signature"
-                                                           , T.pack "name"     .= name
+                                                           , T.pack "name"     .= names
                                                            , T.pack "signature" .= ty
                                                            ]
   toJSON (TypeDecl doc hd ty)                     = object [ T.pack "doc"      .= doc

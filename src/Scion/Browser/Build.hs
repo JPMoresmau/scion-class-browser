@@ -98,8 +98,8 @@ updateDatabase oldDb pkgInfo = do let dbList        = nub $ map fst $ M.toList o
                                       filteredDb    = foldr (\pid db -> M.delete pid db) oldDb toRemove
                                   let ghcVersion = getGhcInstalledVersion installedList
                                   logToStdout $ "Adding " ++ show (map (\(PackageIdentifier (PackageName name) _) -> name) toAdd)
-                                  (addedDb, _) <- createCabalDatabase' ghcVersion toAdd True
-                                  -- logToStdout $ show errors
+                                  (addedDb, errors) <- createCabalDatabase' ghcVersion toAdd False
+                                  logToStdout $ show errors
                                   return $ M.union filteredDb addedDb
 
 removeSmallVersions :: [PackageIdentifier] -> [PackageIdentifier]

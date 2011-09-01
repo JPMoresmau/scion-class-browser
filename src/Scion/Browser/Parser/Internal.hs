@@ -1,4 +1,4 @@
-{-# LANGUAGE RankNTypes,UnicodeSyntax #-}
+{-# LANGUAGE RankNTypes #-}
 module Scion.Browser.Parser.Internal where
 
 import Control.Monad
@@ -102,7 +102,7 @@ decl doc =  choice [ listed $ function doc
                    ]
 
 listed :: BSParser a -> BSParser [a]
-listed p = do result <- p
+listed p = do result <- try p
               return [result]
 
 listedPair :: BSParser (a, [a]) -> BSParser [a]
@@ -195,22 +195,36 @@ eliminateUnwanted (x:xs) | x == '!'    = eliminateUnwanted xs
                          | x == 'δ'    = 'd' : (eliminateUnwanted xs)
                          | otherwise   = x : (eliminateUnwanted xs)
 
-functionLike :: BSParser (Documented Name) -> BSParser (Documented Name, Documented Type)
-functionLike p = do name <- p
+multipleNames :: BSParser (Documented Name) ->BSParser [Documented Name]
+multipleNames p=sepBy1 p (try $ do
+                        spaces0
+                        char ','
+                        spaces0)
+
+functionLike :: BSParser (Documented Name) -> BSParser ([Documented Name], Documented Type)
+functionLike p = do names <- choice [
+                        (multipleNames p)
+                        ,
+                        (do
+                                char '(' 
+                                ns<-multipleNames p
+                                char ')'
+                                return ns)
+                        ]
                     spaces0
                     string "::"
                     spaces0
                     rest <- restOfLine
                     ty <- parseType rest
-                    return (name, ty)
+                    return (names, ty)
 
 function :: Doc -> BSParser (Documented Decl)
-function doc = do (name, ty) <- functionLike varid
-                  return $ TypeSig doc [name] ty
+function doc = do (names, ty) <- functionLike varid
+                  return $ TypeSig doc names ty
 
 constructor :: Doc -> BSParser (Documented GadtDecl)
-constructor doc = do (name, ty) <- functionLike conid
-                     return $ GadtDecl doc name ty
+constructor doc = do (names, ty) <- functionLike conid
+                     return $ GadtDecl doc (head names) ty
 
 constructorOrFunction :: Doc -> BSParser (Either (Documented Decl) (Documented GadtDecl))
 constructorOrFunction doc = do f <- function doc

@@ -139,9 +139,10 @@ instance Serialize (Documented Decl) where
                                    putWord8 2
                                    put ctx
                                    put hd
-  put (TypeSig doc [name] ty) = do put doc
+  put (TypeSig doc names ty) = do 
+                                   put doc
                                    putWord8 3
-                                   put name
+                                   put names
                                    put ty
   put (TypeDecl doc hd ty) = do put doc
                                 putWord8 4
@@ -167,9 +168,9 @@ instance Serialize (Documented Decl) where
              2 -> do ctx <- get
                      hd <- get
                      return $ InstDecl doc ctx hd nothing
-             3 -> do name <- get
+             3 -> do names <- get
                      ty <- get
-                     return $ TypeSig doc [name] ty
+                     return $ TypeSig doc names ty
              _ -> do hd <- get
                      ty <- get
                      return $ TypeDecl doc hd ty
