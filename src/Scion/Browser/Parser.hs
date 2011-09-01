@@ -10,6 +10,7 @@ import Control.Concurrent.ParallelIO.Local
 import Control.DeepSeq
 import Control.Monad
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.UTF8 as BSU
 import Data.Either (rights)
 import Data.Serialize
 import Scion.Browser
@@ -28,7 +29,7 @@ import Text.ParserCombinators.Parsec.Pos (newPos)
 -- | Parses the contents of a string containing the 
 --   Hoogle file contents.
 parseHoogleString :: String -> BS.ByteString -> Either ParseError (Documented Package)
-parseHoogleString name contents = case runP hoogleParser () name contents of
+parseHoogleString name contents = case runP hoogleParser () name (BSU.toString contents) of
                                     Right pkg -> pkg `deepseq` (Right pkg)
                                     Left err  -> Left err
 

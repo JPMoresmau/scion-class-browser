@@ -13,7 +13,7 @@ import Language.Haskell.Exts.Extension
 import qualified Language.Haskell.Exts.Parser as Parser
 import Scion.Browser
 import Scion.Browser.Parser.Documentable
-import Text.Parsec.ByteString as BS
+import Text.Parsec.String as BS
 import Text.Parsec.Char
 import Text.Parsec.Combinator
 import Text.Parsec.Prim
@@ -203,13 +203,12 @@ multipleNames p=sepBy1 p (try $ do
 
 functionLike :: BSParser (Documented Name) -> BSParser ([Documented Name], Documented Type)
 functionLike p = do names <- choice [
-                        (multipleNames p)
-                        ,
-                        (do
+                        (try $ do
                                 char '(' 
                                 ns<-multipleNames p
                                 char ')'
-                                return ns)
+                                return ns),
+                        (multipleNames p)
                         ]
                     spaces0
                     string "::"
@@ -424,16 +423,29 @@ varid = try (do initial <- lower <|> char '_'
                 guard $ not (var `elem` haskellKeywords)
                 return $ Ident NoDoc var)
         <|> 
-        try (do initial <- oneOf (tail specialCharacters)
-                rest <- many (oneOf specialCharacters)
-                let var = initial:rest
-                guard $ not (var `elem` haskellReservedOps)
-                return $ Symbol NoDoc var)
+--        try (do --initial <- oneOf (tail specialCharacters)
+--                var <- many1 (oneOf specialCharacters)
+--                --let var = initial:rest
+--                guard $ not (var `elem` haskellReservedOps)
+--                return $ Symbol NoDoc var)
+--        <|>
+        try (do string "()"
+                return $ Symbol NoDoc "()")
+        <|>
+        try (do char '('
+                s<-many1 (char ',')
+                char ')'
+                return $ Symbol NoDoc s)
         <|>
         try (do char '('
                 var <- varid
                 char ')'
                 return var)
+        <|>
+        try (do var <- many1 (noneOf [',',')','(',' ','\r','\n','\t'])
+                guard $ not (var `elem` haskellReservedOps)
+                return $ Symbol NoDoc var)
+ 
 
 conid :: BSParser (Documented Name)
 conid = (do initial <- upper
@@ -508,8 +520,10 @@ lineariseType ty            = [ty]
 
 typeToContextAndHead :: (Documented Type) -> (Maybe (Documented Context), Documented DeclHead)
 typeToContextAndHead t = let (ctx, ty) = getContextAndType t
-                             ((TyCon _ (UnQual _ name)):params) = lineariseType ty
-                             vars = toKindedVars params
+                             (name,vars) = case lineariseType ty of
+                                ((TyCon _ (UnQual _ name)):params) -> (name,toKindedVars params)  
+                                ((TyCon _ (Qual _ _ name)):params) -> (name,toKindedVars params) 
+                                ((TyCon _ (Special l _)):params) -> (Symbol l "",toKindedVars params)  
                          in  (ctx, DHead NoDoc name vars)
 
 toKindedVars :: [Type Doc] -> [TyVarBind Doc]
