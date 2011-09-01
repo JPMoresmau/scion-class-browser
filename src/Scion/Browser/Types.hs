@@ -2,7 +2,7 @@
 
 module Scion.Browser.Types where
 
-import Data.List (find)
+import Data.List (find, intersperse)
 import qualified Data.Map as M
 import qualified Data.Text as T
 import Distribution.Package hiding (Package)
@@ -78,7 +78,7 @@ instance Named Decl where
   getName (GDataDecl _ _ _ (DHead _ name _) _ _ _) = getNameString name
   getName (ClassDecl _ _ (DHead _ name _) _ _)     = getNameString name
   getName (InstDecl _ _ (IHead _ name _) _)        = getQNameString name
-  getName (TypeSig _ [name] _)                     = getNameString name
+  getName (TypeSig _ name _)                       = concat $ intersperse "," $ map getNameString name
   getName v                                        = error $ "This should not be possible: " ++ show v
 
 instance DocItem Decl GadtDecl where

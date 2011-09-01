@@ -22,6 +22,7 @@ library
     MissingH         == 1.*,
     aeson            >= 0.3.2,
     parallel-io      >= 0.3,
+    utf8-string      ,
     -- For Scion.packages (provisional)
     ghc-paths        == 0.1.*
   
@@ -77,6 +78,7 @@ executable scion-browser
     MissingH         == 1.*,
     aeson            >= 0.3.2,
     parallel-io      >= 0.3,
+    utf8-string      ,
     -- For Scion.packages (provisional)
     ghc-paths        == 0.1.*
   
@@ -102,3 +104,13 @@ executable scion-browser
     
   ghc-options: -rtsopts -Wall -fno-warn-unused-do-bind -fno-warn-orphans -threaded
   other-modules:   Server.Commands, Scion.Browser.Instances.Json, Scion.Browser.Instances.NFData, Scion.Browser.Instances.Serialize, Scion.Browser.Parser.Documentable, Scion.Browser.Parser.Internal, Scion.Browser.Build, Scion.Browser.FileUtil, Scion.Browser.Parser, Scion.Browser.Query, Scion.Browser.TempFile, Scion.Browser.Types, Scion.Browser.Util, Scion.Hoogle.Instances.Json, Scion.Hoogle.Parser, Scion.Hoogle.Types, Scion.Hoogle.Util, Scion.Browser, Scion.Hoogle, Scion.Packages
+
+test-suite BrowserTests
+  type:            exitcode-stdio-1.0
+  x-uses-tf:       true
+  build-depends:   
+    base >= 4, HUnit >= 1.2 && < 2, QuickCheck >= 2.4, test-framework >= 0.4.1, test-framework-quickcheck2, test-framework-hunit,utf8-string
+  ghc-options: -Wall -rtsopts
+  hs-source-dirs:  src, test
+  main-is: Test.hs
+  other-modules: Scion.Browser.Parser.Documentable, Scion.Browser.Parser.Internal, Scion.Browser.Parser, Scion.Browser.ParserTests

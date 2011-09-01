@@ -21,7 +21,7 @@ query db q = do mpath <- findHoogleBinPath
                   Nothing   -> return []
                   Just path -> do (exitCode, output, err) <- readProcessWithExitCode path [q] ""
                                   case exitCode of
-                                    ExitSuccess -> case runP (hoogleElements db) () "hoogle-output" (BS8.pack output) of
+                                    ExitSuccess -> case runP (hoogleElements db) () "hoogle-output" (output) of
                                                      Right result -> return result
                                                      Left  _      -> return []
                                     _           -> do
