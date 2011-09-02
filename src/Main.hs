@@ -23,6 +23,6 @@ loop = do maybeLine <- getInputLine ""
                 Atto.Done _ value -> case T.parse parseJSON value of
                                        Error e     -> outputStrLn ("error in command: " ++ e) >> loop
                                        Success cmd -> do (res, continue) <- lift $ executeCommand cmd
-                                                         outputStrLn $ LBS.unpack (encode res)
+                                                         liftIO $ LBS.putStrLn $ encode res
                                                          if continue then loop else return ()
 
