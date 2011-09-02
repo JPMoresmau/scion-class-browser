@@ -445,7 +445,7 @@ varid = try (do initial <- lower <|> char '_'
                 char ')'
                 return var)
         <|>
-        try (do var <- many1 (noneOf [',',')','(',' ','\r','\n','\t'])
+        try (do var <- many1 (noneOf [',',')','(',' ','\r','\n','\t','A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z'])
                 guard $ not (var `elem` haskellReservedOps)
                 return $ Symbol NoDoc var)
  

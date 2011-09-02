@@ -42,7 +42,7 @@ downloadHoogleFile url = do
                                                then return $ Just (SBS8.pack response)
                                                else return Nothing
 
--- |Downloads a file from the internetn, using the system proxy
+-- |Downloads a file from the internet, using the system proxy
 fetchURL :: String -> IO (String)
 fetchURL url=do
             pr<-fetchProxy False

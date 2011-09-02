@@ -25,6 +25,7 @@ import Text.Parsec.Error (ParseError)
 import Text.ParserCombinators.Parsec.Error (newErrorMessage, Message(..))
 import Text.ParserCombinators.Parsec.Pos (newPos)
 
+
 baseDbUrl :: String
 baseDbUrl = "http://haskell.org/hoogle/base.txt"
 
@@ -98,8 +99,8 @@ updateDatabase oldDb pkgInfo = do let dbList        = nub $ map fst $ M.toList o
                                       filteredDb    = foldr (\pid db -> M.delete pid db) oldDb toRemove
                                   let ghcVersion = getGhcInstalledVersion installedList
                                   logToStdout $ "Adding " ++ show (map (\(PackageIdentifier (PackageName name) _) -> name) toAdd)
-                                  (addedDb, errors) <- createCabalDatabase' ghcVersion toAdd False
-                                  logToStdout $ show errors
+                                  (addedDb, _) <- createCabalDatabase' ghcVersion toAdd True
+                                  --logToStdout $ show errors
                                   return $ M.union filteredDb addedDb
 
 removeSmallVersions :: [PackageIdentifier] -> [PackageIdentifier]
@@ -134,7 +135,8 @@ getCabalHoogle ghcVersion pid ifFailCreateEmpty tmp =
        Left e                     -> return $ if ifFailCreateEmpty
                                                  then Right (Package NoDoc pid M.empty)
                                                  else Left e
-       Right (Package doc _ info) -> return $ Right (Package doc pid info)
+       Right (Package doc _ info) -> do
+                return $ Right (Package doc pid info)
 
 -- | Get the database from a Cabal package.
 getCabalHoogle' :: Version -> PackageIdentifier -> FilePath -> IO (Either ParseError (Documented Package))
