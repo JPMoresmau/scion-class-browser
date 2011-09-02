@@ -129,10 +129,10 @@ parseType' st = let parseString = eliminateUnwanted st
                       Parser.ParseOk ty -> mapOnNames (theInverseReplacements . generateInverseLatinReplacements nonAsciiChars) (document NoDoc ty)
 
 theReplacements :: String -> String
-theReplacements = (replace "#" "__HASH__") . (replace "[:" "__GHC_ARR_OPEN__") . (replace ":]" "__GHC_ARR_CLOSE__") . (replace "!" "__BANG__")
+theReplacements = (replace "#" "__HASH__") . (replace "[:" "__GHC_ARR_OPEN__") . (replace ":]" "__GHC_ARR_CLOSE__") . (replace "!" "BANG__")
 
 theInverseReplacements :: String -> String
-theInverseReplacements = (replace "__HASH__" "#") . (replace "__GHC_ARR_OPEN__" "[:") . (replace "__GHC_ARR_CLOSE__" ":]") . (replace "__BANG__" "!")
+theInverseReplacements = (replace "__HASH__" "#") . (replace "__GHC_ARR_OPEN__" "[:") . (replace "__GHC_ARR_CLOSE__" ":]") . (replace "BANG__" "!")
 
 generateLatinReplacements :: [Char] -> (String -> String)
 generateLatinReplacements []                 = id
@@ -445,7 +445,8 @@ varid = try (do initial <- lower <|> char '_'
                 char ')'
                 return var)
         <|>
-        try (do var <- many1 (noneOf [',',')','(',' ','\r','\n','\t','A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z'])
+        try (do var <- many1 (noneOf [',',')','(',' ','\r','\n','\t'])
+                guard $ not (isUpper $ head var)
                 guard $ not (var `elem` haskellReservedOps)
                 return $ Symbol NoDoc var)
  
@@ -524,9 +525,9 @@ lineariseType ty            = [ty]
 typeToContextAndHead :: (Documented Type) -> (Maybe (Documented Context), Documented DeclHead)
 typeToContextAndHead t = let (ctx, ty) = getContextAndType t
                              (name,vars) = case lineariseType ty of
-                                ((TyCon _ (UnQual _ name)):params) -> (name,toKindedVars params)  
-                                ((TyCon _ (Qual _ _ name)):params) -> (name,toKindedVars params) 
-                                ((TyCon _ (Special l _)):params) -> (Symbol l "",toKindedVars params)  
+                                ((TyCon _ (UnQual _ name')):params) -> (name', toKindedVars params)  
+                                ((TyCon _ (Qual _ _ name')):params) -> (name', toKindedVars params) 
+                                ((TyCon _ (Special l _)):params)    -> (Symbol l "", toKindedVars params)  
                          in  (ctx, DHead NoDoc name vars)
 
 toKindedVars :: [Type Doc] -> [TyVarBind Doc]
