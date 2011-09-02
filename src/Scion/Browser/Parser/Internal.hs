@@ -2,7 +2,7 @@
 module Scion.Browser.Parser.Internal where
 
 import Control.Monad
-import Data.Char (isControl)
+import Data.Char (isControl, isLatin1, isUpper, ord)
 import Data.List (intercalate)
 import qualified Data.Map as M
 import Data.String.Utils (replace)
@@ -116,25 +116,43 @@ parseTypeMode :: Parser.ParseMode
 parseTypeMode = Parser.ParseMode "" knownExtensions False False Nothing
 
 parseType :: String -> BSParser (Documented Type)
-parseType st = do     
-                  let parseString = eliminateUnwanted st
-                      -- Parse using haskell-src-exts
-                      parsed = Parser.parseTypeWithMode parseTypeMode parseString
-                  case parsed of
-                    Parser.ParseFailed _ _ -> 
-                      -- HACK: parsing of # fails, try to replace it and parse again
-                      do let noHashString = theReplacements parseString 
-                             parsed' = Parser.parseTypeWithMode parseTypeMode noHashString
-                         case parsed' of
-                           Parser.ParseFailed _ _ -> return $ TyVar NoDoc (Ident NoDoc "not parsed")
-                           Parser.ParseOk ty -> return $ mapOnNames theInverseReplacements (document NoDoc ty)
-                    Parser.ParseOk ty -> return $ document NoDoc ty
+parseType st = return (parseType' st)
 
-theReplacements :: (String -> String)
-theReplacements = (replace "#" "__HASH__") . (replace "[:" "__GHC_ARR_OPEN__") . (replace ":]" "__GHC_ARR_CLOSE__")
+parseType' :: String -> Documented Type
+parseType' st = let parseString = eliminateUnwanted st
+                    nonAsciiChars = filter (not . isLatin1) parseString
+                    noHashString = (theReplacements . generateLatinReplacements nonAsciiChars) parseString 
+                    -- Parse using haskell-src-exts
+                    parsed = Parser.parseTypeWithMode parseTypeMode noHashString
+                 in case parsed of
+                      Parser.ParseFailed _ _ -> TyVar NoDoc (Ident NoDoc "not parsed")
+                      Parser.ParseOk ty -> mapOnNames (theInverseReplacements . generateInverseLatinReplacements nonAsciiChars) (document NoDoc ty)
 
-theInverseReplacements :: (String -> String)
-theInverseReplacements = (replace "__HASH__" "#") . (replace "__GHC_ARR_OPEN__" "[:") . (replace "__GHC_ARR_CLOSE__" ":]")
+theReplacements :: String -> String
+theReplacements = (replace "#" "__HASH__") . (replace "[:" "__GHC_ARR_OPEN__") . (replace ":]" "__GHC_ARR_CLOSE__") . (replace "!" "__BANG__")
+
+theInverseReplacements :: String -> String
+theInverseReplacements = (replace "__HASH__" "#") . (replace "__GHC_ARR_OPEN__" "[:") . (replace "__GHC_ARR_CLOSE__" ":]") . (replace "__BANG__" "!")
+
+generateLatinReplacements :: [Char] -> (String -> String)
+generateLatinReplacements []                 = id
+generateLatinReplacements (c:cs) | isUpper c = (replace [c] ("UNICODE_SYMBOL_" ++ (show $ ord c) ++ "__")) . (generateLatinReplacements cs)
+                                 | otherwise = (replace [c] ("unicode_symbol_" ++ (show $ ord c) ++ "__")) . (generateLatinReplacements cs)
+
+generateInverseLatinReplacements :: [Char] -> (String -> String)
+generateInverseLatinReplacements []                 = id
+generateInverseLatinReplacements (c:cs) | isUpper c = (replace ("UNICODE_SYMBOL_" ++ (show $ ord c) ++ "__") [c]) . (generateInverseLatinReplacements cs)
+                                        | otherwise = (replace ("unicode_symbol_" ++ (show $ ord c) ++ "__") [c]) . (generateInverseLatinReplacements cs)
+
+-- HACK: Types with ! are not parsed by haskell-src-exts
+-- HACK: Control characters (like EOF) may appear
+-- HACK: {-# UNPACK #-} comments and greek letters may appear
+-- HACK: Greek letters may appear
+eliminateUnwanted :: String -> String
+eliminateUnwanted "" = ""
+eliminateUnwanted ('{':('-':('#':(' ':('U':('N':('P':('A':('C':('K':(' ':('#':('-':('}': xs)))))))))))))) = eliminateUnwanted xs
+eliminateUnwanted (x:xs) | isControl x = eliminateUnwanted xs
+                         | otherwise   = x : (eliminateUnwanted xs)
 
 mapOnNames :: (String -> String) -> Documented Type -> Documented Type
 mapOnNames f (TyForall doc vars context ty) = TyForall doc
@@ -179,21 +197,6 @@ mapOnNamesAsst f (EqualP doc ty1 ty2) = EqualP doc (mapOnNames f ty1) (mapOnName
 mapOnNamesIPName :: (String -> String) -> Documented IPName -> Documented IPName
 mapOnNamesIPName f (IPDup doc s) = IPDup doc (f s)
 mapOnNamesIPName f (IPLin doc s) = IPLin doc (f s)
-
--- HACK: Types with ! are not parsed by haskell-src-exts
--- HACK: Control characters (like EOF) may appear
--- HACK: {-# UNPACK #-} comments and greek letters may appear
--- HACK: Greek letters may appear
-eliminateUnwanted :: String -> String
-eliminateUnwanted "" = ""
-eliminateUnwanted ('{':('-':('#':(' ':('U':('N':('P':('A':('C':('K':(' ':('#':('-':('}': xs)))))))))))))) = eliminateUnwanted xs
-eliminateUnwanted (x:xs) | x == '!'    = eliminateUnwanted xs
-                         | isControl x = eliminateUnwanted xs
-                         | x == 'α'    = 'a' : (eliminateUnwanted xs)
-                         | x == 'β'    = 'b' : (eliminateUnwanted xs)
-                         | x == 'γ'    = 'c' : (eliminateUnwanted xs)
-                         | x == 'δ'    = 'd' : (eliminateUnwanted xs)
-                         | otherwise   = x : (eliminateUnwanted xs)
 
 multipleNames :: BSParser (Documented Name) ->BSParser [Documented Name]
 multipleNames p=sepBy1 p (try $ do
