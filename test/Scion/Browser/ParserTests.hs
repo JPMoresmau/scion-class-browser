@@ -10,11 +10,17 @@ import Language.Haskell.Exts.Annotated.Syntax
 import System.Directory
 import System.FilePath
 import Data.Serialize
+import Data.List
+import qualified Data.Aeson as A
+import qualified Data.ByteString.Lazy.UTF8 as LBS
+
+
+import Data.List.Split
 
 parserTests :: [Test]
 parserTests = checkValids
 
-
+checkValids :: [Test]
 checkValids=map (\(f,exps)->TestLabel ("Testing parsing "++f) (TestCase (checkValid f exps))) [
         ("warp",[("Network.Wai.Handler.Warp",["run","resume,pause","Settings","Manager"])])
         ,("wai",[("Network.Wai",[])])
@@ -28,6 +34,7 @@ checkValids=map (\(f,exps)->TestLabel ("Testing parsing "++f) (TestCase (checkVa
         ,("base-unicode-symbols",[("Data.Ord.Unicode",["(≯)"])])
         ]
 
+checkValid :: String -> [(String,[String])] -> IO()
 checkValid name exps=do
         let f="data" </> addExtension name "txt"
         fe<-doesFileExist f
@@ -55,5 +62,8 @@ checkPresence m (modName,exps)=do
                 Just (Module _ _ _ _ decls)->do
                         let names=map getName decls
                         mapM_ (\e->assertBool e (elem e names)) exps
+                        let res=A.toJSON decls
+                        let output=LBS.toString (A.encode res)
+                        mapM_ (\e->mapM_ (\e2->assertBool e2 (isInfixOf e2 output))(splitOn "," e)) exps
                         return ()
                 
