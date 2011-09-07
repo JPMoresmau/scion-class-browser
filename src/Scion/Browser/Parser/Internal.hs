@@ -5,13 +5,13 @@ import Control.Monad
 import Data.Char (isControl, isLatin1, isUpper, ord)
 import Data.List (intercalate)
 import qualified Data.Map as M
-import Data.String.Utils (replace)
 import Distribution.Package (PackageIdentifier(..), PackageName(..))
 import Distribution.Version
 import Language.Haskell.Exts.Annotated.Syntax
 import Language.Haskell.Exts.Extension
 import qualified Language.Haskell.Exts.Parser as Parser
 import Scion.Browser
+import Scion.Browser.FromMissingH (replace)
 import Scion.Browser.Parser.Documentable
 import Text.Parsec.String as BS
 import Text.Parsec.Char
