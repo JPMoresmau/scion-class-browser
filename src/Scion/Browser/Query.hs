@@ -11,11 +11,11 @@ module Scion.Browser.Query
 ) where
 
 import Data.List (isPrefixOf, stripPrefix)
-import Data.List.Utils (addToAL)
 import qualified Data.Map as M
 import Distribution.Package hiding (Package)
 import Language.Haskell.Exts.Annotated.Syntax
 import Scion.Browser
+import Scion.Browser.FromMissingH (addToAL)
 
 -- |Get the identifiers of all packages in the database.
 allPackageIds :: Database -> [PackageIdentifier]

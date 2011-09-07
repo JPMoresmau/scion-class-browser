@@ -1,5 +1,5 @@
 name:           scion-browser
-version:        0.1
+version:        0.1.1
 cabal-version:  >= 1.2
 build-type:     Simple
 
@@ -19,7 +19,6 @@ library
     zlib             == 0.5.*,
     HTTP             >= 4000 && < 5000,
     deepseq          >= 1.1 && < 2,
-    MissingH         == 1.*,
     aeson            >= 0.3.2,
     parallel-io      >= 0.3,
     utf8-string      ,
@@ -53,7 +52,7 @@ library
     Scion.Hoogle
     
   ghc-options: -rtsopts -Wall -fno-warn-unused-do-bind -fno-warn-orphans -threaded
-  other-modules:   Scion.Browser.Instances.Json, Scion.Browser.Instances.NFData, Scion.Browser.Instances.Serialize, Scion.Browser.Parser.Documentable, Scion.Browser.Parser.Internal, Scion.Browser.FileUtil, Scion.Browser.Parser, Scion.Browser.TempFile, Scion.Browser.Types, Scion.Browser.Util, Scion.Hoogle.Instances.Json, Scion.Hoogle.Parser, Scion.Hoogle.Types, Scion.Hoogle.Util, Scion.Packages
+  other-modules:   Scion.Browser.Instances.Json, Scion.Browser.Instances.NFData, Scion.Browser.Instances.Serialize, Scion.Browser.Parser.Documentable, Scion.Browser.Parser.Internal, Scion.Browser.FileUtil, Scion.Browser.Parser, Scion.Browser.TempFile, Scion.Browser.Types, Scion.Browser.Util, Scion.Hoogle.Instances.Json, Scion.Hoogle.Parser, Scion.Hoogle.Types, Scion.Hoogle.Util, Scion.Packages, Scion.Browser.FromMissingH
 
 executable scion-browser
   hs-source-dirs:  src
@@ -75,7 +74,6 @@ executable scion-browser
     zlib             == 0.5.*,
     HTTP             >= 4000 && < 5000,
     deepseq          >= 1.1 && < 2,
-    MissingH         == 1.*,
     aeson            >= 0.3.2,
     parallel-io      >= 0.3,
     utf8-string      ,
@@ -103,7 +101,7 @@ executable scion-browser
       ghc            >= 6.10 && < 6.13
     
   ghc-options: -rtsopts -Wall -fno-warn-unused-do-bind -fno-warn-orphans -threaded
-  other-modules:   Server.Commands, Scion.Browser.Instances.Json, Scion.Browser.Instances.NFData, Scion.Browser.Instances.Serialize, Scion.Browser.Parser.Documentable, Scion.Browser.Parser.Internal, Scion.Browser.Build, Scion.Browser.FileUtil, Scion.Browser.Parser, Scion.Browser.Query, Scion.Browser.TempFile, Scion.Browser.Types, Scion.Browser.Util, Scion.Hoogle.Instances.Json, Scion.Hoogle.Parser, Scion.Hoogle.Types, Scion.Hoogle.Util, Scion.Browser, Scion.Hoogle, Scion.Packages
+  other-modules:   Server.Commands, Scion.Browser.Instances.Json, Scion.Browser.Instances.NFData, Scion.Browser.Instances.Serialize, Scion.Browser.Parser.Documentable, Scion.Browser.Parser.Internal, Scion.Browser.Build, Scion.Browser.FileUtil, Scion.Browser.Parser, Scion.Browser.Query, Scion.Browser.TempFile, Scion.Browser.Types, Scion.Browser.Util, Scion.Hoogle.Instances.Json, Scion.Hoogle.Parser, Scion.Hoogle.Types, Scion.Hoogle.Util, Scion.Browser, Scion.Hoogle, Scion.Packages, Scion.Browser.FromMissingH
 
 test-suite BrowserTests
   type:            exitcode-stdio-1.0
