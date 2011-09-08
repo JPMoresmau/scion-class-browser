@@ -2,6 +2,11 @@ name:           scion-browser
 version:        0.1.1
 cabal-version:  >= 1.2
 build-type:     Simple
+license:        BSD3
+license-file:   docs/LICENSE
+author:         Alejandro Serrano <trupill@gmail.com>
+maintainer:     Alejandro Serrano <trupill@gmail.com>
+homepage:       http://github.com/serras/scion-class-browser
 
 library
   hs-source-dirs:  src
