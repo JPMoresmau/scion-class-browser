@@ -1,3 +1,5 @@
+{-# LANGUAGE ScopedTypeVariables #-}
+
 module Scion.Browser.Build
 ( saveHackageDatabase
 , createHackageDatabase
@@ -8,6 +10,7 @@ module Scion.Browser.Build
 
 import Control.Concurrent.ParallelIO.Local
 import Control.DeepSeq
+import Control.Exception as E (catch, SomeException)
 import Data.Either (rights)
 import Data.List ((\\), nub)
 import qualified Data.Map as M
@@ -69,13 +72,13 @@ createHackageDatabase tmp =
      -- Parse Hoogle database
      createDirectoryIfMissing True hoogleDbDir
      logToStdout "Started downloading Hoogle database"
-     --Just hoogleDownloaded <- downloadFileLazy hoogleDbUrl
-     --logToStdout "Uncompressing Hoogle database"
-     --unTarGzip hoogleDownloaded hoogleDbDir
-     --logToStdout $ "Hoogle database is now in " ++ hoogleDbDir
-     --createDirectoryIfMissing True tmpDir
-     --(pkgs, errors) <- parseDirectory hoogleDbDir tmpDir
-     let (pkgs, errors) = ([], [])
+     Just hoogleDownloaded <- downloadFileLazy hoogleDbUrl
+     logToStdout "Uncompressing Hoogle database"
+     unTarGzip hoogleDownloaded hoogleDbDir
+     logToStdout $ "Hoogle database is now in " ++ hoogleDbDir
+     createDirectoryIfMissing True tmpDir
+     (pkgs, errors) <- parseDirectory hoogleDbDir tmpDir
+     --let (pkgs, errors) = ([], [])
      -- Parse base package
      Just baseDownloaded <- downloadFileStrict baseDbUrl
      logToStdout "Base database successfully downloaded"
@@ -130,12 +133,15 @@ createCabalDatabase' ghcVersion pkgs ifFailCreateEmpty =
 -- | Get the database from a Cabal package.
 getCabalHoogle :: Version -> PackageIdentifier -> Bool -> FilePath -> IO (Either ParseError (Documented Package))
 getCabalHoogle ghcVersion pid ifFailCreateEmpty tmp = 
-  do result <- getCabalHoogle' ghcVersion pid tmp
-     case result of
-       Left e                     -> return $ if ifFailCreateEmpty
-                                                 then Right (Package NoDoc pid M.empty)
-                                                 else Left e
-       Right (Package doc _ info) -> return $ Right (Package doc pid info)
+  E.catch (do result <- getCabalHoogle' ghcVersion pid tmp
+              case result of
+                Left e                     -> return $ failure e
+                Right (Package doc _ info) -> return $ Right (Package doc pid info))
+          (\(e :: E.SomeException) -> return $ failure (newErrorMessage (Message "error parsing")
+                                                                       (newPos "" 0 0)))
+  where failure e = if ifFailCreateEmpty
+                       then Right (Package NoDoc pid M.empty)
+                       else Left e
 
 -- | Get the database from a Cabal package.
 getCabalHoogle' :: Version -> PackageIdentifier -> FilePath -> IO (Either ParseError (Documented Package))
