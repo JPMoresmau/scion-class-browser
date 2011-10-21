@@ -1,6 +1,7 @@
 {-# LANGUAGE RankNTypes #-}
 module Scion.Browser.Parser.Internal where
 
+-- import Debug.Trace (trace)
 import Control.Monad
 import Data.Char (isControl, isLatin1, isUpper, ord)
 import Data.List (intercalate)
@@ -272,8 +273,10 @@ instance_ doc = do string "instance"
                    rest <- restOfLine
                    ty' <- parseType rest
                    let (ctx, ty) = getContextAndType ty'
-                       ((TyCon _ qname):params) = lineariseType ty
-                   return $ InstDecl doc ctx (IHead NoDoc qname params) Nothing
+                       (qhead:params) = lineariseType ty
+                   case qhead of
+                     TyCon _ qname -> return $ InstDecl doc ctx (IHead NoDoc qname params) Nothing
+                     _             -> return $ InstDecl doc ctx (IHead NoDoc (UnQual NoDoc (Ident NoDoc "#unparsed#")) params) Nothing
 
 type_ :: Doc -> BSParser (Documented Decl)
 type_ doc = do string "type"
@@ -527,7 +530,8 @@ typeToContextAndHead t = let (ctx, ty) = getContextAndType t
                              (name,vars) = case lineariseType ty of
                                 ((TyCon _ (UnQual _ name')):params) -> (name', toKindedVars params)  
                                 ((TyCon _ (Qual _ _ name')):params) -> (name', toKindedVars params) 
-                                ((TyCon _ (Special l _)):params)    -> (Symbol l "", toKindedVars params)  
+                                ((TyCon _ (Special l _)):params)    -> (Symbol l "", toKindedVars params)
+                                (_:params)                          -> (Ident NoDoc "#unparsed#", toKindedVars params)
                          in  (ctx, DHead NoDoc name vars)
 
 toKindedVars :: [Type Doc] -> [TyVarBind Doc]
