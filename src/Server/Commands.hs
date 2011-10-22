@@ -6,12 +6,13 @@ import Control.Applicative
 import Control.Monad
 import Control.Monad.State
 import Data.Aeson
+import Data.Maybe (fromMaybe)
 import qualified Data.Map as M
 import qualified Data.Text as T
 import Distribution.Package hiding (Package)
 import Language.Haskell.Exts.Annotated.Syntax hiding (String)
 import Scion.Browser
-import Scion.Browser.Build (updateDatabase)
+import Scion.Browser.Build (saveHackageDatabase, updateDatabase)
 import Scion.Browser.Query
 import Scion.Browser.Util (logToStdout)
 import qualified Scion.Hoogle as H
@@ -19,6 +20,7 @@ import Scion.Packages
 import System.Directory
 
 data Command = LoadLocalDatabase FilePath Bool
+             | LoadHackageDatabase FilePath Bool
              | GetPackages
              | SetCurrentDatabase CurrentDatabase
              | GetModules String
@@ -36,11 +38,12 @@ data CurrentDatabase = AllPackages
 data BrowserState = BrowserState
                       { allDb     :: Database
                       , localDb   :: Database
+                      , hackageDb :: Database
                       , currentDb :: Database
                       }
 
 initialState :: BrowserState
-initialState = BrowserState M.empty M.empty M.empty
+initialState = BrowserState M.empty M.empty M.empty M.empty
 
 type BrowserM = StateT BrowserState IO
 
@@ -54,7 +57,7 @@ executeCommand (LoadLocalDatabase path rebuild) =
                           case maybeDb of
                             Nothing    -> return M.empty
                             Just theDb -> return theDb)
-     lift $ logToStdout "Database loaded"
+     lift $ logToStdout "Local database loaded"
      newDb <- if not rebuild
                  then return curDb
                  else do pkgInfos' <- lift $ getPkgInfos
@@ -63,20 +66,33 @@ executeCommand (LoadLocalDatabase path rebuild) =
                          lift $ logToStdout ("Saving on " ++ path)
                          lift $ saveDatabase path newDb
                          return newDb
-     modify (\s -> s { localDb = newDb, allDb = newDb, currentDb = newDb })
+     modify (\s -> s { allDb = newDb `M.union` hackageDb s, localDb = newDb, currentDb = newDb })
+     return (String "ok", True)
+executeCommand (LoadHackageDatabase path rebuild) =
+  do fileExists <- lift $ doesFileExist path
+     let fileExists' = fileExists `seq` fileExists
+     if not fileExists' || rebuild
+        then do lift $ logToStdout "Rebuilding Hackage database"
+                lift $ saveHackageDatabase path
+        else return ()
+     maybeDb <- lift $ loadDatabase path
+     lift $ logToStdout "Hackage database loaded"
+     let db = fromMaybe M.empty maybeDb
+     modify (\s -> s { allDb = localDb s `M.union` db, hackageDb = db, currentDb = db })
      return (String "ok", True)
 executeCommand (SetCurrentDatabase db)  =
   do case db of
-       AllPackages   -> do modify (\s -> s { currentDb = localDb s })
-                           return (String "ok", True)
-       LocalDatabase -> do modify (\s -> s { currentDb = localDb s })
-                           return (String "ok", True)
-       APackage pid  -> do st <- get
-                           case getSingletonDatabase pid (allDb st) of
-                             Nothing    -> return (String "error", True)
-                             Just newDb -> do modify (\s -> s { currentDb = newDb })
-                                              return (String "ok", True)
-       _             -> return (String (T.pack "not implemented"), True)
+       AllPackages     -> do modify (\s -> s { currentDb = allDb s })
+                             return (String "ok", True)
+       LocalDatabase   -> do modify (\s -> s { currentDb = localDb s })
+                             return (String "ok", True)
+       HackageDatabase -> do modify (\s -> s { currentDb = hackageDb s })
+                             return (String "ok", True)
+       APackage pid    -> do st <- get
+                             case getSingletonDatabase pid (allDb st) of
+                               Nothing    -> return (String "error", True)
+                               Just newDb -> do modify (\s -> s { currentDb = newDb })
+                                                return (String "ok", True)
 executeCommand GetPackages               = do db <- getCurrentDatabase
                                               return (toJSON (allPackages db), True)
 executeCommand (GetModules mname)        = do db <- getCurrentDatabase
@@ -119,6 +135,8 @@ instance FromJSON Command where
                              case T.unpack e of
                                "load-local-db"    -> LoadLocalDatabase <$> v .: "filepath"
                                                                        <*> v .: "rebuild"
+                               "load-hackage-db"  -> LoadHackageDatabase <$> v .: "filepath"
+                                                                         <*> v .: "rebuild"
                                "get-packages"     -> pure GetPackages
                                "set-current-db"   -> SetCurrentDatabase <$> v .: "new-db"
                                "get-modules"      -> GetModules <$> v .: "module"

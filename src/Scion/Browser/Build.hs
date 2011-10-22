@@ -1,3 +1,5 @@
+{-# LANGUAGE ScopedTypeVariables #-}
+
 module Scion.Browser.Build
 ( saveHackageDatabase
 , createHackageDatabase
@@ -8,6 +10,7 @@ module Scion.Browser.Build
 
 import Control.Concurrent.ParallelIO.Local
 import Control.DeepSeq
+import Control.Exception as E (catch, SomeException)
 import Data.Either (rights)
 import Data.List ((\\), nub)
 import qualified Data.Map as M
@@ -76,6 +79,8 @@ createHackageDatabase tmp =
      logToStdout $ "Hoogle database is now in " ++ hoogleDbDir
      createDirectoryIfMissing True tmpDir
      (pkgs, errors) <- parseDirectory hoogleDbDir tmpDir
+     --let (pkgs, errors) = ([], [])
+     {-
      -- Parse base package
      Just baseDownloaded <- downloadFileStrict baseDbUrl
      logToStdout "Base database successfully downloaded"
@@ -89,6 +94,8 @@ createHackageDatabase tmp =
                                 Right b -> (b:dbBase, errorsBase)
                                 Left  e -> (dbBase, ("ghc.txt", e):errorsBase)
      return (pkgListToDb dbGhc, errorsGhc)
+     -}
+     return (pkgListToDb pkgs, errors)
 
 -- | Updates a database with changes in the installed package base.
 updateDatabase :: Database -> [InstalledPackageInfo] -> IO Database
@@ -99,8 +106,8 @@ updateDatabase oldDb pkgInfo = do let dbList        = nub $ map fst $ M.toList o
                                       filteredDb    = foldr (\pid db -> M.delete pid db) oldDb toRemove
                                   let ghcVersion = getGhcInstalledVersion installedList
                                   logToStdout $ "Adding " ++ show (map (\(PackageIdentifier (PackageName name) _) -> name) toAdd)
-                                  (addedDb, _) <- createCabalDatabase' ghcVersion toAdd True
-                                  --logToStdout $ show errors
+                                  (addedDb, errors) <- createCabalDatabase' ghcVersion toAdd True
+                                  logToStdout $ show errors
                                   return $ M.union filteredDb addedDb
 
 removeSmallVersions :: [PackageIdentifier] -> [PackageIdentifier]
@@ -130,13 +137,15 @@ createCabalDatabase' ghcVersion pkgs ifFailCreateEmpty =
 -- | Get the database from a Cabal package.
 getCabalHoogle :: Version -> PackageIdentifier -> Bool -> FilePath -> IO (Either ParseError (Documented Package))
 getCabalHoogle ghcVersion pid ifFailCreateEmpty tmp = 
-  do result <- getCabalHoogle' ghcVersion pid tmp
-     case result of
-       Left e                     -> return $ if ifFailCreateEmpty
-                                                 then Right (Package NoDoc pid M.empty)
-                                                 else Left e
-       Right (Package doc _ info) -> do
-                return $ Right (Package doc pid info)
+  E.catch (do result <- getCabalHoogle' ghcVersion pid tmp
+              case result of
+                Left e                     -> return $ failure e
+                Right (Package doc _ info) -> return $ Right (Package doc pid info))
+          (\(e :: E.SomeException) -> return $ failure (newErrorMessage (Message "error parsing")
+                                                                       (newPos "" 0 0)))
+  where failure e = if ifFailCreateEmpty
+                       then Right (Package NoDoc pid M.empty)
+                       else Left e
 
 -- | Get the database from a Cabal package.
 getCabalHoogle' :: Version -> PackageIdentifier -> FilePath -> IO (Either ParseError (Documented Package))
