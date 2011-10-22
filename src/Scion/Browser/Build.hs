@@ -79,6 +79,7 @@ createHackageDatabase tmp =
      createDirectoryIfMissing True tmpDir
      (pkgs, errors) <- parseDirectory hoogleDbDir tmpDir
      --let (pkgs, errors) = ([], [])
+     {-
      -- Parse base package
      Just baseDownloaded <- downloadFileStrict baseDbUrl
      logToStdout "Base database successfully downloaded"
@@ -92,6 +93,8 @@ createHackageDatabase tmp =
                                 Right b -> (b:dbBase, errorsBase)
                                 Left  e -> (dbBase, ("ghc.txt", e):errorsBase)
      return (pkgListToDb dbGhc, errorsGhc)
+     -}
+     return (pkgListToDb pkgs, errors)
 
 -- | Updates a database with changes in the installed package base.
 updateDatabase :: Database -> [InstalledPackageInfo] -> IO Database
@@ -102,7 +105,7 @@ updateDatabase oldDb pkgInfo = do let dbList        = nub $ map fst $ M.toList o
                                       filteredDb    = foldr (\pid db -> M.delete pid db) oldDb toRemove
                                   let ghcVersion = getGhcInstalledVersion installedList
                                   logToStdout $ "Adding " ++ show (map (\(PackageIdentifier (PackageName name) _) -> name) toAdd)
-                                  (addedDb, errors) <- createCabalDatabase' ghcVersion toAdd False
+                                  (addedDb, errors) <- createCabalDatabase' ghcVersion toAdd True
                                   logToStdout $ show errors
                                   return $ M.union filteredDb addedDb
 
