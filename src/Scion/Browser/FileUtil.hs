@@ -42,7 +42,7 @@ downloadHoogleFile url = do
                                                then return $ Just (SBS8.pack response)
                                                else return Nothing
 
--- |Downloads a file from the internetn, using the system proxy
+-- |Downloads a file from the internet, using the system proxy
 fetchURL :: String -> IO (String)
 fetchURL url=do
             pr<-fetchProxy False
@@ -78,12 +78,12 @@ withWorkingDirectory dir action =
     bracket getCurrentDirectory setCurrentDirectory (\ _ -> setCurrentDirectory dir >> action)
 
 -- |create a temporary directory, run the action, remove the temporary directory
--- the directory will be created as a subdirectory of the directory returned by getTemporaryDirectory
+-- the directory will be created inside the system temporary directory (cf bug 3413186)
 -- the temporary directory will be automatically removed afterwards.
 -- your working directory is not altered
 withTemporaryDirectory :: (FilePath -> IO a) -> IO a
 withTemporaryDirectory f =
-     do home <- getCurrentDirectory
+     do home <- getTemporaryDirectory 
         bracket (createTempDirectory home ".scion")
                 removeDirectoryRecursive
                 f

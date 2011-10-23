@@ -13,12 +13,14 @@ import Data.Serialize
 import Data.List
 import qualified Data.Aeson as A
 import qualified Data.ByteString.Lazy.UTF8 as LBS
-
-
+import qualified Data.ByteString.Lazy.Char8 as LBS
+import qualified Language.Haskell.Exts.Parser as Parser
+import Language.Haskell.Exts.Extension
 import Data.List.Split
+--import Scion.Browser.FileUtil
 
 parserTests :: [Test]
-parserTests = checkValids
+parserTests = checkTypeParse:checkValids
 
 checkValids :: [Test]
 checkValids=map (\(f,exps)->TestLabel ("Testing parsing "++f) (TestCase (checkValid f exps))) [
@@ -31,7 +33,7 @@ checkValids=map (\(f,exps)->TestLabel ("Testing parsing "++f) (TestCase (checkVa
         ,("haskell98",[("Maybe",["Maybe","isJust"])])
         ,("haskell2010",[("Data.Array",["Array","ixmap"]),("Data.Complex",["(:+)"])])
         ,("ghc-prim",[])
-        ,("base-unicode-symbols",[("Data.Ord.Unicode",["(≯)"])])
+        ,("base-unicode-symbols",[("Data.Ord.Unicode",["(≯)"]),("Control.Arrow.Unicode",["(⋙)"])])
         ]
 
 checkValid :: String -> [(String,[String])] -> IO()
@@ -39,6 +41,9 @@ checkValid name exps=do
         let f="data" </> addExtension name "txt"
         fe<-doesFileExist f
         assertBool (f++" does not exist") fe
+        --Just txt<-downloadHoogleFile "http://hackage.haskell.org/packages/archive/warp/0.4.4/doc/html/warp.txt"
+        --
+        --let res=parseHoogleString "<package>" txt
         res<-parseHoogleFile f
         case res of
                 Right p@(Package _ pid m)->do
@@ -64,6 +69,16 @@ checkPresence m (modName,exps)=do
                         mapM_ (\e->assertBool e (elem e names)) exps
                         let res=A.toJSON decls
                         let output=LBS.toString (A.encode res)
+                        assertBool modName (not $ isInfixOf "not parsed" output)
                         mapM_ (\e->mapM_ (\e2->assertBool e2 (isInfixOf e2 output))(splitOn "," e)) exps
                         return ()
-                
+      
+checkTypeParse :: Test
+checkTypeParse=  TestLabel "Testing checkTypeParse" (TestCase (do
+        let parseString="Category (⇝) => (α ⇝ β) -> (β ⇝ γ) -> (α ⇝ γ)"     -- does not work if I remove the brackets around the first squiggly arrow
+        let parseTypeMode=Parser.ParseMode "" knownExtensions False False Nothing
+        let parsed = Parser.parseTypeWithMode parseTypeMode parseString   
+        case parsed of
+            Parser.ParseFailed _ msg -> assertFailure msg
+            Parser.ParseOk _ -> return ()
+        ))  

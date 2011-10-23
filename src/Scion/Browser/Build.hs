@@ -28,6 +28,7 @@ import Text.Parsec.Error (ParseError)
 import Text.ParserCombinators.Parsec.Error (newErrorMessage, Message(..))
 import Text.ParserCombinators.Parsec.Pos (newPos)
 
+
 baseDbUrl :: String
 baseDbUrl = "http://haskell.org/hoogle/base.txt"
 
