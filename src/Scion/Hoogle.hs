@@ -1,6 +1,7 @@
 module Scion.Hoogle
 ( query
 , downloadData
+, checkDatabase
 , module Scion.Hoogle.Types
 ) where
 
@@ -24,9 +25,8 @@ query db q = do mpath <- findHoogleBinPath
                                     ExitSuccess -> case runP (hoogleElements db) () "hoogle-output" (output) of
                                                      Right result -> return result
                                                      Left  _      -> return []
-                                    _           -> do
-                                        putStrLn err
-                                        return []
+                                    _           -> do putStrLn err
+                                                      return []
 
 downloadData :: IO Bool
 downloadData = do mpath <- findHoogleBinPath
@@ -36,4 +36,11 @@ downloadData = do mpath <- findHoogleBinPath
                                     (ec, _, err) <- readProcessWithExitCode path ["data"] ""
                                     when (ec/= ExitSuccess) (putStrLn err)
                                     return (ec == ExitSuccess)
+
+checkDatabase :: IO Bool
+checkDatabase = do mpath <- findHoogleBinPath
+                   case mpath of
+                     Nothing   -> return False
+                     Just path -> do (exitCode, _, _) <- readProcessWithExitCode path ["fmap"] ""
+                                     return (exitCode == ExitSuccess)
 

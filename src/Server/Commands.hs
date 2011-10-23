@@ -27,6 +27,7 @@ data Command = LoadLocalDatabase FilePath Bool
              | GetDeclarations String
              | HoogleQuery String
              | HoogleDownloadData
+             | HoogleCheckDatabase
              | GetDeclarationModules String
              | Quit
 
@@ -107,6 +108,8 @@ executeCommand (HoogleQuery query)       = do db <- getCurrentDatabase
                                               return (toJSON results, True)
 executeCommand HoogleDownloadData        = do _ <- lift $ H.downloadData
                                               return (String "ok", True)
+executeCommand HoogleCheckDatabase       = do present <- lift $ H.checkDatabase
+                                              return (Bool present, True)
 executeCommand (GetDeclarationModules d) = do db <- getCurrentDatabase
                                               let mods = getModulesWhereDeclarationIs d db
                                               return (toJSON mods, True)
@@ -143,6 +146,7 @@ instance FromJSON Command where
                                "get-declarations" -> GetDeclarations <$> v .: "module"
                                "hoogle-query"     -> HoogleQuery <$> v .: "query"
                                "hoogle-data"      -> pure HoogleDownloadData
+                               "hoogle-check"     -> pure HoogleCheckDatabase
                                "get-decl-module"  -> GetDeclarationModules <$> v .: "decl"
                                "quit"             -> pure Quit
                                _                  -> mzero
