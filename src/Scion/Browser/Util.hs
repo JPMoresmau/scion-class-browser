@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 module Scion.Browser.Util where
 
 import Control.Concurrent.ParallelIO.Local
@@ -27,6 +28,9 @@ executeCommand tmp exe args showOutput =
                                (if showOutput then Inherit else CreatePipe)
                                (if showOutput then Inherit else CreatePipe)
                                True
+#if __GLASGOW_HASKELL__ >= 702
+                               False 
+#endif
      (_, _, _, h) <- createProcess cproc
      waitForProcess h
 
