@@ -1,4 +1,4 @@
-{-# OPTIONS -cpp #-}
+{-# LANGUAGE CPP #-}
 
 module Scion.Hoogle.Util
 ( findHoogleBinPath
@@ -11,9 +11,7 @@ import Scion.Packages
 import System.FilePath
 import System.Directory (doesFileExist)
 
-#ifdef mingw32_HOST_OS
 import System.Directory (getAppUserDataDirectory)
-#endif
 
 -- Functions for finding Hoogle in the system
 
@@ -21,9 +19,7 @@ findHoogleBinPath :: IO (Maybe String)
 findHoogleBinPath = findPathsAndCheck placesToSearch
                     where placesToSearch = [ findHoogleBinInLibrary getHoogleBinPath1
                                            , findHoogleBinInLibrary getHoogleBinPath2
-#ifdef mingw32_HOST_OS
                                            , getHoogleBinPath3
-#endif
                                            ]
 
 findPathsAndCheck :: [IO (Maybe String)] -> IO (Maybe String)
@@ -70,11 +66,9 @@ getHoogleBinPath2 :: String -> String
 getHoogleBinPath2 path = let (_:(_:rest)) = reverse $ splitDirectories path
                          in  (joinPath $ reverse ("bin":rest)) </> "hoogle" <.> exeExtension
 
-#ifdef mingw32_HOST_OS
 getHoogleBinPath3 :: IO (Maybe String)
 getHoogleBinPath3 = do cabalDir <- getAppUserDataDirectory "cabal"
                        return $ Just (cabalDir </> "bin" </> "hoogle" <.> exeExtension)
-#endif
 
 exeExtension :: String
 #ifdef mingw32_HOST_OS
