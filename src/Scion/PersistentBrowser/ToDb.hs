@@ -24,13 +24,61 @@ saveModuleToDb pkgId (Module doc (Just (ModuleHead _ (ModuleName _ name) _ _)) _
 saveModuleToDb _ _ = error "This should never happen"
 
 -- saveDeclToDb :: PersistBackend backend m => DbModuleId -> Documented Decl -> backend m ()
+-- Datatypes
 saveDeclToDb moduleId (GDataDecl doc (DataType _) ctx hd kind decls _) =
   do let (declName, declVars) = declHeadToDb hd
-     declId <- insert $ DbDecl DbData declName (docToString doc) (fmap singleLinePrettyPrint kind) Nothing Nothing Nothing moduleId
+     declId <- insert $ DbDecl DbData declName (docToString doc)
+                               (fmap singleLinePrettyPrint kind) Nothing Nothing moduleId
+     mapM_ (saveTyVarToDb declId) declVars
+     mapM_ (saveContextToDb declId) (contextToDb (maybeEmptyContext ctx))
+     mapM_ (saveConstructorToDb declId) decls
+-- Newtypes
+saveDeclToDb moduleId (GDataDecl doc (NewType _) ctx hd kind decls _) =
+  do let (declName, declVars) = declHeadToDb hd
+     declId <- insert $ DbDecl DbNewType declName (docToString doc)
+                               (fmap singleLinePrettyPrint kind) Nothing Nothing moduleId
+     mapM_ (saveTyVarToDb declId) declVars
+     mapM_ (saveContextToDb declId) (contextToDb (maybeEmptyContext ctx))
+     mapM_ (saveConstructorToDb declId) decls
+-- Classes
+saveDeclToDb moduleId (ClassDecl doc ctx hd fdeps _) =
+  do let (declName, declVars) = declHeadToDb hd
+     declId <- insert $ DbDecl DbClass declName (docToString doc)
+                               Nothing Nothing Nothing moduleId
+     mapM_ (saveTyVarToDb declId) declVars
+     mapM_ (saveContextToDb declId) (contextToDb (maybeEmptyContext ctx))
+     mapM_ (saveFunDepToDb declId) (map singleLinePrettyPrint fdeps)
+-- Instances
+saveDeclToDb moduleId (InstDecl doc ctx hd _) =
+  do let (declName, declVars) = instHeadToDb hd
+     declId <- insert $ DbDecl DbInstance declName (docToString doc)
+                               Nothing Nothing Nothing moduleId
+     mapM_ (saveTyVarToDb declId) declVars
+     mapM_ (saveContextToDb declId) (contextToDb (maybeEmptyContext ctx))
+-- Signatures
+saveDeclToDb moduleId (TypeSig doc names ty) =
+  do mapM_ saveSignatureToDb names
+  where saveSignatureToDb name = 
+          insert $ DbDecl DbSignature (getNameString name) (docToString doc) 
+                          Nothing (Just (singleLinePrettyPrint ty)) Nothing moduleId
+-- Types
+saveDeclToDb moduleId (TypeDecl doc hd ty) =
+  do let (declName, declVars) = declHeadToDb hd
+     declId <- insert $ DbDecl DbType declName (docToString doc) 
+                               Nothing Nothing (Just (singleLinePrettyPrint ty)) moduleId
      mapM_ (saveTyVarToDb declId) declVars
 
 -- saveTyVarToDb :: PersistBackend backend m => DbDeclId -> String -> backend m ()
 saveTyVarToDb declId var = insert $ DbTyVar var declId
+
+-- saveFunDepToDb :: PersistBackend backend m => DbDeclId -> String -> backend m ()
+saveFunDepToDb declId var = insert $ DbTyVar var declId
+
+-- saveContextToDb :: PersistBackend backend m => DbDeclId -> String -> backend m ()
+saveContextToDb declId ctx = insert $ DbContext ctx declId
+
+-- saveConstructorToDb :: PersistBackend backend m => DbDeclId -> Documented GadtDecl -> backend m ()
+saveConstructorToDb declId (GadtDecl _ name ty) = insert $ DbConstructor (getNameString name) (singleLinePrettyPrint ty) declId
 
 docToString :: Doc -> Maybe String
 docToString NoDoc     = Nothing
@@ -46,4 +94,14 @@ instHeadToDb _ = error "This should never happen"
 
 singleLinePrettyPrint :: Pretty a => a -> String
 singleLinePrettyPrint = prettyPrintWithMode $ defaultMode { layout = PPNoLayout }
+
+maybeEmptyContext :: Maybe (Documented Context) -> Documented Context
+maybeEmptyContext Nothing    = CxEmpty NoDoc
+maybeEmptyContext (Just ctx) = ctx
+
+contextToDb :: Context l -> [String]
+contextToDb (CxSingle _ a)  = [ singleLinePrettyPrint a ]
+contextToDb (CxTuple _ as)  = map singleLinePrettyPrint as
+contextToDb (CxParen _ ctx) = contextToDb ctx
+contextToDb (CxEmpty _)     = []
 

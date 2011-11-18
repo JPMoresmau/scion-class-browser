@@ -25,11 +25,13 @@ DbDecl
     -- Depending on the type of decl,
     -- it will have some of these
     kind      String Maybe
-    fundeps   String Maybe
     signature String Maybe
     equals    String Maybe
     moduleId  DbModuleId
 DbTyVar
+    name      String
+    declId    DbDeclId
+DbFunDep
     name      String
     declId    DbDeclId
 DbContext
@@ -43,5 +45,5 @@ DbConstructor
 |]
 
 data DbPackageIdentifier = DbPackageIdentifier String String -- name, version
-data DbCompleteDecl = DbCompleteDecl DbDecl [DbContext] [DbTyVar] [DbConstructor]
+data DbCompleteDecl = DbCompleteDecl DbDecl [DbContext] [DbTyVar] [DbFunDep] [DbConstructor]
 

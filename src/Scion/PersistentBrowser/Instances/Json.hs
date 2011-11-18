@@ -32,7 +32,7 @@ instance ToJSON (DbModule) where
                                         ]
 
 instance ToJSON DbCompleteDecl where
-  toJSON (DbCompleteDecl (DbDecl DbData name doc kind _ _ _ _) context vars decls) =
+  toJSON (DbCompleteDecl (DbDecl DbData name doc kind _ _ _) context vars _ decls) =
     object [ "doc"       .= doc
            , "type"      .= T.pack "data"
            , "context"   .= context
@@ -42,7 +42,7 @@ instance ToJSON DbCompleteDecl where
            , "kind"      .= kind
            , "decls"     .= decls
            ]
-  toJSON (DbCompleteDecl (DbDecl DbNewType name doc kind _ _ _ _) context vars decls) =
+  toJSON (DbCompleteDecl (DbDecl DbNewType name doc kind _ _ _) context vars _ decls) =
     object [ "doc"       .= doc
            , "type"      .= T.pack "newtype"
            , "context"   .= context
@@ -52,7 +52,7 @@ instance ToJSON DbCompleteDecl where
            , "kind"      .= kind
            , "decls"     .= decls
            ]
-  toJSON (DbCompleteDecl (DbDecl DbClass name doc _ fundeps _ _ _) context vars _) =
+  toJSON (DbCompleteDecl (DbDecl DbClass name doc _ _ _ _) context vars fundeps _) =
     object [ "doc"       .= doc
            , "type"      .= T.pack "class"
            , "context"   .= context
@@ -61,7 +61,7 @@ instance ToJSON DbCompleteDecl where
                                    ]
            , "fundeps"   .= fundeps
            ]
-  toJSON (DbCompleteDecl (DbDecl DbInstance name doc _ _ _ _ _) context vars _) =
+  toJSON (DbCompleteDecl (DbDecl DbInstance name doc _ _ _ _) context vars _ _) =
     object [ "doc"       .= doc
            , "type"      .= T.pack "instance"
            , "context"   .= context
@@ -69,13 +69,13 @@ instance ToJSON DbCompleteDecl where
                                    , "vars" .= vars
                                    ]
            ]
-  toJSON (DbCompleteDecl (DbDecl DbSignature name doc _ _ signature _ _) _ _ _) =
+  toJSON (DbCompleteDecl (DbDecl DbSignature name doc _ signature _ _) _ _ _ _) =
     object [ "doc"       .= doc
            , "type"      .= T.pack "signature"
            , "name"      .= [ name ]
            , "signature" .= signature
            ]
-  toJSON (DbCompleteDecl (DbDecl DbType name doc _ _ _ equals _) _ vars _) =
+  toJSON (DbCompleteDecl (DbDecl DbType name doc _ _ equals _) _ vars _ _) =
     object [ "doc"       .= doc
            , "type"      .= T.pack "type"
            , "head"      .= object [ "name" .= name
@@ -89,6 +89,9 @@ instance ToJSON DbContext where
 
 instance ToJSON DbTyVar where
   toJSON (DbTyVar name _) = String $ T.pack name
+
+instance ToJSON DbFunDep where
+  toJSON (DbFunDep name _) = String $ T.pack name
 
 instance ToJSON DbConstructor where
   toJSON (DbConstructor name signature _) = object [ "name" .= name
