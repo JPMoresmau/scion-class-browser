@@ -37,6 +37,7 @@ library
     persistent,
     persistent-sqlite >= 0.6,
     persistent-template,
+    transformers,
     -- For Scion.packages (provisional)
     ghc-paths         == 0.1.*
   
@@ -66,7 +67,9 @@ library
     Scion.PersistentBrowser.DbTypes,
     Scion.PersistentBrowser.Instances.Json,
     Scion.PersistentBrowser.ToDb,
-    Scion.PersistentBrowser.Parser.Internal
+    Scion.PersistentBrowser.Build,
+    Scion.PersistentBrowser.Parser.Internal,
+    Scion.PersistentBrowser.Query
     
   ghc-options: -rtsopts -Wall -fno-warn-unused-do-bind -fno-warn-orphans
 
@@ -96,6 +99,7 @@ executable scion-browser
     persistent,
     persistent-sqlite >= 0.6,
     persistent-template,
+    transformers,
     -- For Scion.packages (provisional)
     ghc-paths         == 0.1.*
   
@@ -161,6 +165,7 @@ test-suite BrowserTests
     persistent,
     persistent-sqlite >= 0.6,
     persistent-template,
+    transformers,
     -- For Scion.packages (provisional)
     ghc-paths         == 0.1.*
   

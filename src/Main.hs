@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Main where
 
 import Control.Monad.State
@@ -9,9 +11,24 @@ import qualified Data.ByteString.Lazy.Char8 as LBS
 import Server.Commands
 import System.Console.Haskeline
 
+import Database.Persist
+import Database.Persist.Sqlite
+import Scion.PersistentBrowser.DbTypes
+import Scion.PersistentBrowser.Build
+import Scion.Packages
+
+{-
 main :: IO ()
 main = do runStateT (runInputT defaultSettings loop) initialState
           return ()
+-}
+
+main :: IO ()
+main = do withSqliteConn "local.persist" $ runSqlConn $ runMigration migrateAll
+          pkgInfos' <- getPkgInfos
+          let pkgInfos = take 20 $ concat $ map snd pkgInfos'
+          updateDatabase "local.persist" pkgInfos
+    
 
 loop :: InputT BrowserM ()
 loop = do maybeLine <- getInputLine ""

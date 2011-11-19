@@ -45,5 +45,9 @@ DbConstructor
 |]
 
 data DbPackageIdentifier = DbPackageIdentifier String String -- name, version
+
+dbPackageToIdentifier :: DbPackage -> DbPackageIdentifier
+dbPackageToIdentifier (DbPackage name version _) = DbPackageIdentifier name version
+
 data DbCompleteDecl = DbCompleteDecl DbDecl [DbContext] [DbTyVar] [DbFunDep] [DbConstructor]
 

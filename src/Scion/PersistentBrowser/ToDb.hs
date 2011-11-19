@@ -5,17 +5,19 @@ import qualified Data.Map as M
 import qualified Data.Text as T
 import Data.Version (showVersion)
 import Database.Persist
-import Database.Persist.Sqlite
 import Distribution.Package hiding (Package)
 import Language.Haskell.Exts.Annotated.Syntax hiding (String)
 import Language.Haskell.Exts.Pretty
 import Scion.PersistentBrowser.DbTypes
 import Scion.PersistentBrowser.Types
 
-savePackageToDb :: Documented Package -> Connection -> IO ()
+-- SAVING IN THE DATABASE
+-- ======================
+
+-- savePackageToDb :: PersistBackend backend m => Documented Package -> backend m ()
 savePackageToDb (Package doc (PackageIdentifier (PackageName name) version) modules) = 
-  runSqlConn $ do pkgId <- insert $ DbPackage name (showVersion version) (docToString doc)
-                  mapM_ (saveModuleToDb pkgId) (M.elems modules)
+  do pkgId <- insert $ DbPackage name (showVersion version) (docToString doc)
+     mapM_ (saveModuleToDb pkgId) (M.elems modules)
   
 -- saveModuleToDb :: PersistBackend backend m => DbPackageId -> Documented Module -> backend m ()
 saveModuleToDb pkgId (Module doc (Just (ModuleHead _ (ModuleName _ name) _ _)) _ _ decls) =
@@ -79,6 +81,37 @@ saveContextToDb declId ctx = insert $ DbContext ctx declId
 
 -- saveConstructorToDb :: PersistBackend backend m => DbDeclId -> Documented GadtDecl -> backend m ()
 saveConstructorToDb declId (GadtDecl _ name ty) = insert $ DbConstructor (getNameString name) (singleLinePrettyPrint ty) declId
+
+-- DELETE PACKAGE FROM DATABASE
+-- ============================
+
+-- deletePackageByInfo :: PersistBackend backend m => PackageIdentifier -> backend m ()
+deletePackageByInfo (PackageIdentifier (PackageName name) version) =
+  do Just (packageId, _) <- selectFirst [ DbPackageName ==. name, DbPackageVersion ==. showVersion version ] []
+     deletePackage packageId
+
+-- deletePackage :: PersistBackend backend m => DbPackageId -> backend m ()
+deletePackage packageId =
+  do modules <- selectList [ DbModulePackageId ==. packageId ] []
+     mapM_ (\(moduleId, _) -> deleteModule moduleId) modules
+     delete packageId
+
+-- deleteModule :: PersistBackend backend m => DbModuleId -> backend m ()
+deleteModule moduleId =
+  do decls <- selectList [ DbDeclModuleId ==. moduleId ] []
+     mapM_ (\(declId, _) -> deleteDecl declId) decls
+     delete moduleId
+
+-- deleteDecl :: PersistBackend backend m => DbModuleId -> backend m ()
+deleteDecl declId =
+  do deleteWhere [ DbTyVarDeclId ==. declId ]
+     deleteWhere [ DbFunDepDeclId ==. declId ]
+     deleteWhere [ DbContextDeclId ==. declId ]
+     deleteWhere [ DbConstructorDeclId ==. declId ]
+     delete declId
+
+-- UTILITIES FOR CONVERTING TO STRINGS
+-- ===================================
 
 docToString :: Doc -> Maybe String
 docToString NoDoc     = Nothing
