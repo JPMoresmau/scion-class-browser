@@ -1,12 +1,6 @@
-module Scion.PersistentBrowser.Query
-( allPackageIds
-, allPackages
-, packagesByName
-, getPackage
-, getSubmodules
-, getDeclsInModule
-, getModulesWhereDeclarationIs
-) where
+{-# LANGUAGE TypeSynonymInstances #-}
+
+module Scion.PersistentBrowser.Query where
 
 import qualified Data.Text as T
 import Database.Persist
@@ -36,6 +30,11 @@ getPackage :: DbPackageIdentifier -> SqlPersist IO (Maybe (DbPackage))
 getPackage (DbPackageIdentifier name version) = do package <- selectFirst [ DbPackageName ==. name, DbPackageVersion ==. version ] []
                                                    return $ fmap snd package
 
+-- |Get information about all modules with that name.
+modulesByName :: String -> SqlPersist IO [DbModule]
+modulesByName name = do mods <- selectList [ DbModuleName ==. name ] []
+                        return $ map snd mods
+
 -- |Get all the modules hierarchically inside the specified one.
 --  For getting the entire list of modules modules, use "" as initial name.
 getSubmodules :: String -> SqlPersist IO [DbModule]
@@ -51,6 +50,11 @@ withPopper popper = loop []
                          Nothing        -> return list
                          Just [ modId ] -> loop (modId:list)
                          _              -> error "This should not happen"
+
+-- |Get information about all declaration with that name.
+declsByName :: String -> SqlPersist IO [DbDecl]
+declsByName name = do decls <- selectList [ DbDeclName ==. name ] []
+                      return $ map snd decls
 
 -- |Gets the declarations inside some module,
 --  along with information about which package it lives.
@@ -75,6 +79,11 @@ getAllDeclInfo (declId, decl) =
      let consts = map snd consts'
      return $ DbCompleteDecl decl ctxs tyvars fundeps consts
 
+-- |Get information about all constructors with that name.
+constructorsByName :: String -> SqlPersist IO [DbConstructor]
+constructorsByName name = do consts <- selectList [ DbConstructorName ==. name ] []
+                             return $ map snd consts
+
 -- | Gets a list of modules where a declaration may live
 getModulesWhereDeclarationIs :: String -> SqlPersist IO [DbModule]
 getModulesWhereDeclarationIs declName =
@@ -86,4 +95,34 @@ getModulesWhereDeclarationIs declName =
      mapM (\(DbDecl _ _ _ _ _ _ modId) -> do Just md <- get modId
                                              return md)
           (decls ++ consDecls)
+
+-- |Things that reside on a package.
+class HasDbPackage d where
+  getDbPackage :: d -> SqlPersist IO DbPackage
+
+instance HasDbPackage DbPackage where
+  getDbPackage = return
+
+instance HasDbPackage DbModule where
+  getDbPackage (DbModule _ _ pkgId) = do Just pkg <- get pkgId
+                                         return pkg
+
+instance HasDbPackage DbDecl where
+  getDbPackage (DbDecl _ _ _ _ _ _ modId) = do Just md <- get modId
+                                               getDbPackage md
+
+-- |Things that reside on a module.
+class HasDbModule d where
+  getDbModule :: d -> SqlPersist IO DbModule
+
+instance HasDbModule DbModule where
+  getDbModule = return
+
+instance HasDbModule DbDecl where
+  getDbModule (DbDecl _ _ _ _ _ _ modId) = do Just md <- get modId
+                                              return md
+
+instance HasDbModule DbConstructor where
+  getDbModule (DbConstructor _ _ declId) = do Just dc <- get declId
+                                              getDbModule dc
 

@@ -532,6 +532,7 @@ typeToContextAndHead t = let (ctx, ty) = getContextAndType t
                                 ((TyCon _ (Qual _ _ name')):params) -> (name', toKindedVars params) 
                                 ((TyCon _ (Special l _)):params)    -> (Symbol l "", toKindedVars params)
                                 (_:params)                          -> (Ident NoDoc "#unparsed#", toKindedVars params)
+                                []                                  -> error "This should never happen"
                          in  (ctx, DHead NoDoc name vars)
 
 toKindedVars :: [Type Doc] -> [TyVarBind Doc]

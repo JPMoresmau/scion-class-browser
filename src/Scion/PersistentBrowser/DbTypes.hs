@@ -1,8 +1,10 @@
-{-# LANGUAGE QuasiQuotes, TemplateHaskell, TypeFamilies, OverloadedStrings #-}
-{-# LANGUAGE GADTs #-}
+{-# LANGUAGE QuasiQuotes, TemplateHaskell, TypeFamilies, OverloadedStrings, GADTs #-}
+
 module Scion.PersistentBrowser.DbTypes where
 
 import Database.Persist
+import Database.Persist.Base
+import Database.Persist.Sqlite
 import Database.Persist.TH
 
 data DbDeclType = DbData | DbNewType | DbClass | DbInstance | DbSignature | DbType
@@ -44,10 +46,13 @@ DbConstructor
     declId    DbDeclId
 |]
 
+-- |Information needed to search a package.
 data DbPackageIdentifier = DbPackageIdentifier String String -- name, version
 
 dbPackageToIdentifier :: DbPackage -> DbPackageIdentifier
 dbPackageToIdentifier (DbPackage name version _) = DbPackageIdentifier name version
 
+-- |Complete information for a declaration.
+--  Look at its ToJSON instance to know which one is used in each kind of declaration.
 data DbCompleteDecl = DbCompleteDecl DbDecl [DbContext] [DbTyVar] [DbFunDep] [DbConstructor]
 

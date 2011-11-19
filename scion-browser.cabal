@@ -69,7 +69,8 @@ library
     Scion.PersistentBrowser.ToDb,
     Scion.PersistentBrowser.Build,
     Scion.PersistentBrowser.Parser.Internal,
-    Scion.PersistentBrowser.Query
+    Scion.PersistentBrowser.Query,
+    Scion.PersistentHoogle.Parser
     
   ghc-options: -rtsopts -Wall -fno-warn-unused-do-bind -fno-warn-orphans
 

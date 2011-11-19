@@ -69,6 +69,8 @@ saveDeclToDb moduleId (TypeDecl doc hd ty) =
      declId <- insert $ DbDecl DbType declName (docToString doc) 
                                Nothing Nothing (Just (singleLinePrettyPrint ty)) moduleId
      mapM_ (saveTyVarToDb declId) declVars
+-- Other
+saveDeclToDb _ _ = error "This should never happen"
 
 -- saveTyVarToDb :: PersistBackend backend m => DbDeclId -> String -> backend m ()
 saveTyVarToDb declId var = insert $ DbTyVar var declId
@@ -87,14 +89,14 @@ saveConstructorToDb declId (GadtDecl _ name ty) = insert $ DbConstructor (getNam
 
 -- deletePackageByInfo :: PersistBackend backend m => PackageIdentifier -> backend m ()
 deletePackageByInfo (PackageIdentifier (PackageName name) version) =
-  do Just (packageId, _) <- selectFirst [ DbPackageName ==. name, DbPackageVersion ==. showVersion version ] []
-     deletePackage packageId
+  do Just (pkgId, _) <- selectFirst [ DbPackageName ==. name, DbPackageVersion ==. showVersion version ] []
+     deletePackage pkgId
 
 -- deletePackage :: PersistBackend backend m => DbPackageId -> backend m ()
-deletePackage packageId =
-  do modules <- selectList [ DbModulePackageId ==. packageId ] []
+deletePackage pkgId =
+  do modules <- selectList [ DbModulePackageId ==. pkgId ] []
      mapM_ (\(moduleId, _) -> deleteModule moduleId) modules
-     delete packageId
+     delete pkgId
 
 -- deleteModule :: PersistBackend backend m => DbModuleId -> backend m ()
 deleteModule moduleId =
