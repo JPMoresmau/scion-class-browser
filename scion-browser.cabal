@@ -61,13 +61,15 @@ library
       -- For Scion.Packages (provisional)
       ghc             >= 6.10 && < 6.13
   
-  extra-libraries:   tinfo
+  if !os(mingw32)
+    extra-libraries:   tinfo
   
   exposed-modules:
     Scion.PersistentBrowser,
     Scion.PersistentBrowser.Query,
     Scion.PersistentBrowser.Build,
-    Scion.PersistentHoogle
+    Scion.PersistentHoogle,
+    Server.PersistentCommands
     
   ghc-options: -rtsopts -Wall -fno-warn-unused-do-bind -fno-warn-orphans
 
@@ -121,10 +123,10 @@ executable scion-browser
       -- For Scion.Packages (provisional)
       ghc             >= 6.10 && < 6.13
   
-  extra-libraries:   tinfo
+  if !os(mingw32)
+    extra-libraries:   tinfo
     
   ghc-options: -rtsopts -Wall -fno-warn-unused-do-bind -fno-warn-orphans -threaded
-  other-modules:   Server.Commands, Scion.Browser.Instances.Json, Scion.Browser.Instances.NFData, Scion.Browser.Instances.Serialize, Scion.Browser.Parser.Documentable, Scion.Browser.Parser.Internal, Scion.Browser.Build, Scion.Browser.FileUtil, Scion.Browser.Parser, Scion.Browser.Query, Scion.Browser.TempFile, Scion.Browser.Types, Scion.Browser.Util, Scion.Hoogle.Instances.Json, Scion.Hoogle.Parser, Scion.Hoogle.Types, Scion.Hoogle.Util, Scion.Browser, Scion.Hoogle, Scion.Packages, Scion.Browser.FromMissingH
 
 test-suite BrowserTests
   main-is:         Test.hs
@@ -186,5 +188,6 @@ test-suite BrowserTests
       filepath        == 1.1.*,
       -- For Scion.Packages (provisional)
       ghc             >= 6.10 && < 6.13
-  
-  extra-libraries:   tinfo
+
+  if !os(mingw32)
+    extra-libraries:   tinfo
