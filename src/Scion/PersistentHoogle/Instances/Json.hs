@@ -1,8 +1,11 @@
+{-# LANGUAGE OverloadedStrings, TypeSynonymInstances #-}
+
 module Scion.PersistentHoogle.Instances.Json where
 
 import Control.Applicative
 import Data.Aeson hiding (Result)
 import qualified Data.Text as T
+import Scion.PersistentBrowser ()
 import Scion.PersistentHoogle.Types
 
 instance (ToJSON a, ToJSON b, ToJSON c, ToJSON d) => ToJSON (a,b,c,d) where
@@ -10,17 +13,17 @@ instance (ToJSON a, ToJSON b, ToJSON c, ToJSON d) => ToJSON (a,b,c,d) where
     {-# INLINE toJSON #-}
 
 instance ToJSON (Result) where
-  toJSON (RPackage pids)      = object [ T.pack "type"    .= "package"
-                                       , T.pack "results" .= pids
+  toJSON (RPackage pids)      = object [ "type"    .= T.pack "package"
+                                       , "results" .= pids
                                        ]
-  toJSON (RModule mds)        = object [ T.pack "type"    .= "module"
-                                       , T.pack "results" .= mds
+  toJSON (RModule mds)        = object [ "type"    .= T.pack "module"
+                                       , "results" .= mds
                                        ]
-  toJSON (RDeclaration decls) = object [ T.pack "type"    .= "declaration"
-                                       , T.pack "results" .= decls
+  toJSON (RDeclaration decls) = object [ "type"    .= T.pack "declaration"
+                                       , "results" .= decls
                                        ]
-  toJSON (RConstructor decls) = object [ T.pack "type"    .= "constructor"
-                                       , T.pack "results" .= decls
+  toJSON (RConstructor decls) = object [ "type"    .= T.pack "constructor"
+                                       , "results" .= decls
                                        ]
 
 instance FromJSON (Query) where

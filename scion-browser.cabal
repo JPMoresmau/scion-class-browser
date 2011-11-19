@@ -64,13 +64,10 @@ library
   extra-libraries:   tinfo
   
   exposed-modules:
-    Scion.PersistentBrowser.DbTypes,
-    Scion.PersistentBrowser.Instances.Json,
-    Scion.PersistentBrowser.ToDb,
-    Scion.PersistentBrowser.Build,
-    Scion.PersistentBrowser.Parser.Internal,
+    Scion.PersistentBrowser,
     Scion.PersistentBrowser.Query,
-    Scion.PersistentHoogle.Parser
+    Scion.PersistentBrowser.Build,
+    Scion.PersistentHoogle
     
   ghc-options: -rtsopts -Wall -fno-warn-unused-do-bind -fno-warn-orphans
 

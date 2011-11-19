@@ -91,10 +91,11 @@ convertHalfToResult (HalfModule mname _) =
                                       return (dbPackageToIdentifier pkg, md)) m
                 return $ Just (RModule pm)
 convertHalfToResult (HalfDecl mname dcl) =
-  -- TODO: Check the rest of the things
   do decls <- selectList [ DbDeclName ==. (getName dcl) ] []
-     filteredDecls <- filterM (\(_, dc) -> do (DbModule mn _ _) <- getDbModule dc
-                                              return $ mn == mname) decls
+     filteredDecls <- filterM (\(declId, dc) -> do (DbModule mn _ _) <- getDbModule dc
+                                                   completeDecl <- getAllDeclInfo (declId, dc)
+                                                   return $ mn == mname && checkEqualInDb dcl completeDecl)
+                              decls
      case filteredDecls of
        [] -> return Nothing
        d  -> do dm <- mapM (\(declId, dc) -> do md@(DbModule mn _ _) <- getDbModule dc
