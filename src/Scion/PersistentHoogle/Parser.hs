@@ -1,16 +1,16 @@
-{-# LANGUAGE RankNTypes, ImpredicativeTypes #-}
+{-# LANGUAGE RankNTypes, ImpredicativeTypes, ScopedTypeVariables #-}
 
 module Scion.PersistentHoogle.Parser where
 
-import Control.Monad (filterM)
 import Data.List (intercalate)
+import qualified Data.Text as T
 import Database.Persist
+import Database.Persist.Base
 import Database.Persist.Sqlite
 import Language.Haskell.Exts.Annotated.Syntax
 import Scion.PersistentBrowser.DbTypes
 import Scion.PersistentBrowser.Parser.Internal
 import Scion.PersistentBrowser.Query
-import Scion.PersistentBrowser.ToDb
 import Scion.PersistentBrowser.Types
 import Scion.PersistentHoogle.Types
 import Text.Parsec.Char
@@ -84,65 +84,68 @@ convertHalfToResult (HalfPackage  pname) =
        [] -> return Nothing
        p  -> return $ Just (RPackage p)
 convertHalfToResult (HalfModule mname _) =
-  do mods <- modulesByName mname Nothing
-     case mods of
-       [] -> return Nothing
-       m  -> do pm <- mapM (\md -> do pkg <- getDbPackage md
-                                      return (dbPackageToIdentifier pkg, md)) m
-                return $ Just (RModule pm)
+  do let sql = "SELECT DbModule.name, DbModule.doc, DbModule.packageId, DbPackage.name, DbPackage.version"
+               ++ " FROM DbModule, DbPackage"
+               ++ " WHERE DbModule.packageId = DbPackage.id"
+               ++ " AND DbModule.name = '" ++ mname ++ "'"
+     mods <- queryDb sql action
+     return $ if null mods then Nothing else Just (RModule mods)
+  where action [PersistText modName, modDoc, pkgId@(PersistInt64 _), PersistText pkgName, PersistText pkgVersion] =
+          ( DbPackageIdentifier (T.unpack pkgName) (T.unpack pkgVersion)
+          , DbModule (T.unpack modName) (fromDbText modDoc) (Key pkgId) )
+        action _ = error "This should not happen"
 convertHalfToResult (HalfDecl mname dcl) =
-  do decls <- selectList [ DbDeclName ==. (getName dcl) ] []
-     filteredDecls <- filterM (\(declId, dc) -> do (DbModule mn _ _) <- getDbModule dc
-                                                   completeDecl <- getAllDeclInfo (declId, dc)
-                                                   return $ mn == mname && checkEqualInDb dcl completeDecl)
-                              decls
-     case filteredDecls of
-       [] -> return Nothing
-       d  -> do dm <- mapM (\(declId, dc) -> do md@(DbModule mn _ _) <- getDbModule dc
-                                                pkg <- getDbPackage md
-                                                completeDecl <- getAllDeclInfo (declId, dc)
-                                                return (dbPackageToIdentifier pkg, mn, completeDecl)) d
-                return $ Just (RDeclaration dm)
+  do let sql = "SELECT DbDecl.id, DbDecl.declType, DbDecl.name, DbDecl.doc, DbDecl.kind, DbDecl.signature, DbDecl.equals, DbDecl.moduleId"
+               ++ ", DbPackage.name, DbPackage.version"
+               ++ " FROM DbDecl, DbModule, DbPackage"
+               ++ " WHERE DbDecl.moduleId = DbModule.id"
+               ++ " AND DbModule.packageId = DbPackage.id"
+               ++ " AND DbDecl.name = '" ++ (getName dcl) ++ "'"
+               ++ " AND DbModule.name = '" ++ mname ++ "'"
+     decls <- queryDb sql action
+     completeDecls <- mapM (\(pkgId, modName, dclKey, dclInfo) -> do complete <- getAllDeclInfo (dclKey, dclInfo)
+                                                                     return (pkgId, modName, complete) ) decls
+     return $ if null completeDecls then Nothing else Just (RDeclaration completeDecls)
+  where action [ declId@(PersistInt64 _), PersistText declType, PersistText declName
+               , declDoc, declKind, declSignature, declEquals, modId@(PersistInt64 _)
+               , PersistText pkgName, PersistText pkgVersion ] =
+               let (innerDclKey :: DbDeclId) = Key declId
+                   innerDcl = DbDecl (read (T.unpack declType)) (T.unpack declName) (fromDbText declDoc)
+                                     (fromDbText declKind) (fromDbText declSignature) (fromDbText declEquals)
+                                     (Key modId)
+               in ( DbPackageIdentifier (T.unpack pkgName) (T.unpack pkgVersion)
+                  , mname
+                  , innerDclKey
+                  , innerDcl
+                  )
+        action _ = error "This should not happen"
 convertHalfToResult (HalfGadtDecl mname dcl) =
-  do consts <- constructorsByName (getName dcl)
-     filteredConsts <- filterM (\dc -> do (DbModule mn _ _) <- getDbModule dc
-                                          return $ mn == mname) consts
-     case filteredConsts of
-       [] -> return Nothing
-       c  -> do dm <- mapM (\ct@(DbConstructor _ _ declId) -> 
-                                  do Just dc <- get declId
-                                     completeDecl <- getAllDeclInfo (declId, dc)
-                                     md@(DbModule mn _ _) <- getDbModule dc
-                                     pkg <- getDbPackage md
-                                     return (dbPackageToIdentifier pkg, mn, completeDecl, ct)) c
-                return $ Just (RConstructor dm)
-
-checkEqualInDb :: Documented Decl -> DbCompleteDecl -> Bool
-checkEqualInDb (GDataDecl _ (DataType _) ctx (DHead _ name vars) knd _ _) (DbCompleteDecl (DbDecl DbData dbName _ dbKind _ _ _) dbCtx dbVars _ _) =
-     (getNameString name) == dbName
-  && (map singleLinePrettyPrint vars) == (map (\(DbTyVar vn _) -> vn) dbVars)
-  && (contextToDb (maybeEmptyContext ctx)) == (map (\(DbContext s _) -> s) dbCtx)
-  && (fmap singleLinePrettyPrint knd) == dbKind
-checkEqualInDb (GDataDecl _ (NewType _) ctx (DHead _ name vars) knd _ _) (DbCompleteDecl (DbDecl DbNewType dbName _ dbKind _ _ _) dbCtx dbVars _ _) =
-     (getNameString name) == dbName
-  && (map singleLinePrettyPrint vars) == (map (\(DbTyVar vn _) -> vn) dbVars)
-  && (contextToDb (maybeEmptyContext ctx)) == (map (\(DbContext s _) -> s) dbCtx)
-  && (fmap singleLinePrettyPrint knd) == dbKind
-checkEqualInDb (ClassDecl _ ctx (DHead _ name vars) fdeps _) (DbCompleteDecl (DbDecl DbClass dbName _ _ _ _ _) dbCtx dbVars dbFunDeps _) =
-     (getNameString name) == dbName
-  && (map singleLinePrettyPrint vars) == (map (\(DbTyVar vn _) -> vn) dbVars)
-  && (contextToDb (maybeEmptyContext ctx)) == (map (\(DbContext s _) -> s) dbCtx)
-  && (map singleLinePrettyPrint fdeps) == (map (\(DbFunDep fd _) -> fd) dbFunDeps)
-checkEqualInDb (InstDecl _ ctx (IHead _ name vars) _) (DbCompleteDecl (DbDecl DbInstance dbName _ _ _ _ _) dbCtx dbVars _ _) =
-     (getQNameString name) == dbName
-  && (map singleLinePrettyPrint vars) == (map (\(DbTyVar vn _) -> vn) dbVars)
-  && (contextToDb (maybeEmptyContext ctx)) == (map (\(DbContext s _) -> s) dbCtx)
-checkEqualInDb (TypeSig _ [ name ] ty) (DbCompleteDecl (DbDecl DbSignature dbName _ _ dbSignature _ _) _ _ _ _) =
-     (getNameString name) == dbName
-  && Just (singleLinePrettyPrint ty) == dbSignature
-checkEqualInDb (TypeDecl _ (DHead _ name vars) ty) (DbCompleteDecl (DbDecl DbType dbName _ _ _ dbEquals _) _ dbVars _ _) =
-     (getNameString name) == dbName
-  && (map singleLinePrettyPrint vars) == (map (\(DbTyVar vn _) -> vn) dbVars)
-  && Just (singleLinePrettyPrint ty) == dbEquals
-checkEqualInDb _ _ = False
+  do let sql = "SELECT DbConstructor.name, DbConstructor.signature"
+               ++ ", DbDecl.id, DbDecl.declType, DbDecl.name, DbDecl.doc, DbDecl.kind, DbDecl.signature, DbDecl.equals, DbDecl.moduleId"
+               ++ ", DbPackage.name, DbPackage.version"
+               ++ " FROM DbConstructor, DbDecl, DbModule, DbPackage"
+               ++ " WHERE DbConstructor.declId = DbDecl.id" 
+               ++ " AND DbDecl.moduleId = DbModule.id"
+               ++ " AND DbModule.packageId = DbPackage.id"
+               ++ " AND DbDecl.name = '" ++ (getName dcl) ++ "'"
+               ++ " AND DbModule.name = '" ++ mname ++ "'"
+     decls <- queryDb sql action
+     completeDecls <- mapM (\(pkgId, modName, dclKey, dclInfo, cst) -> do complete <- getAllDeclInfo (dclKey, dclInfo)
+                                                                          return (pkgId, modName, complete, cst) ) decls
+     return $ if null completeDecls then Nothing else Just (RConstructor completeDecls)
+  where action [ PersistText constName, PersistText constSignature
+               , declId@(PersistInt64 _), PersistText declType, PersistText declName
+               , declDoc, declKind, declSignature, declEquals, modId@(PersistInt64 _)
+               , PersistText pkgName, PersistText pkgVersion ] =
+               let (innerDclKey :: DbDeclId) = Key declId
+                   innerDcl = DbDecl (read (T.unpack declType)) (T.unpack declName) (fromDbText declDoc)
+                                     (fromDbText declKind) (fromDbText declSignature) (fromDbText declEquals)
+                                     (Key modId)
+               in ( DbPackageIdentifier (T.unpack pkgName) (T.unpack pkgVersion)
+                  , mname
+                  , innerDclKey
+                  , innerDcl
+                  , DbConstructor (T.unpack constName) (T.unpack constSignature) (Key declId)
+                  )
+        action _ = error "This should not happen"
 
