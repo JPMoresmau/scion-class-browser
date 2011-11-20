@@ -48,6 +48,7 @@ DbConstructor
 
 -- |Information needed to search a package.
 data DbPackageIdentifier = DbPackageIdentifier String String -- name, version
+     deriving Eq
 
 dbPackageToIdentifier :: DbPackage -> DbPackageIdentifier
 dbPackageToIdentifier (DbPackage name version _) = DbPackageIdentifier name version

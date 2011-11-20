@@ -11,19 +11,19 @@ import Database.Persist.GenericSql.Internal (RowPopper)
 import Scion.PersistentBrowser.DbTypes
 
 -- |Get the identifiers of all packages in the database.
-allPackageIds :: SqlPersist IO [DbPackageIdentifier]
-allPackageIds = do packages <- allPackages
-                   return $ map dbPackageToIdentifier packages
+allPackageIds :: Maybe DbPackageIdentifier -> SqlPersist IO [DbPackageIdentifier]
+allPackageIds pkgs = do packages <- allPackages pkgs
+                        return $ map dbPackageToIdentifier packages
 
 -- |Get information of all packages in the database.
-allPackages :: SqlPersist IO [DbPackage]
-allPackages = do packages <- selectList ([] :: [Filter DbPackage]) []
-                 return $ map snd packages
+allPackages :: Maybe DbPackageIdentifier -> SqlPersist IO [DbPackage]
+allPackages _ = do packages <- selectList ([] :: [Filter DbPackage]) []
+                   return $ map snd packages
 
 -- |Get information of all versions of the package with that name.
-packagesByName :: String -> SqlPersist IO [DbPackage]
-packagesByName name = do packages <- selectList [ DbPackageName ==. name ] []
-                         return $ map snd packages
+packagesByName :: String -> Maybe DbPackageIdentifier -> SqlPersist IO [DbPackage]
+packagesByName name _ = do packages <- selectList [ DbPackageName ==. name ] []
+                           return $ map snd packages
 
 -- |Get information about a package in the database.
 getPackage :: DbPackageIdentifier -> SqlPersist IO (Maybe (DbPackage))
@@ -31,41 +31,96 @@ getPackage (DbPackageIdentifier name version) = do package <- selectFirst [ DbPa
                                                    return $ fmap snd package
 
 -- |Get information about all modules with that name.
-modulesByName :: String -> SqlPersist IO [DbModule]
-modulesByName name = do mods <- selectList [ DbModuleName ==. name ] []
-                        return $ map snd mods
+modulesByName :: String -> Maybe DbPackageIdentifier -> SqlPersist IO [DbModule]
+modulesByName name Nothing = do mods <- selectList [ DbModuleName ==. name ] []
+                                return $ map snd mods
+modulesByName name (Just (DbPackageIdentifier pkgName pkgVersion)) =
+  do let sql = "SELECT DbModule.name, DbModule.doc, DbModule.packageId FROM DbModule, DbPackage"
+               ++ " WHERE DbModule.packageId = DbPackage.id "
+               ++ " AND DbModule.name = '" ++ name ++ "'"
+               ++ " AND DbPackage.name = '" ++ pkgName ++ "'"
+               ++ " AND DbPackage.version = '" ++ pkgVersion ++ "'"
+     queryDb sql moduleAction
 
 -- |Get all the modules hierarchically inside the specified one.
 --  For getting the entire list of modules modules, use "" as initial name.
-getSubmodules :: String -> SqlPersist IO [DbModule]
-getSubmodules modName = do let sql = "SELECT id FROM DbModule WHERE name LIKE '" ++ modName ++ ".%'"
-                           modIds <- withStmt (T.pack sql) [] withPopper
-                           mapM (\modId -> do Just md <- get (Key modId)
-                                              return md) modIds
+getSubmodules :: String -> Maybe DbPackageIdentifier -> SqlPersist IO [DbModule]
+getSubmodules "" Nothing =
+  do let sql = "SELECT name, doc, packageId FROM DbModule"
+     queryDb sql moduleAction
+getSubmodules "" (Just (DbPackageIdentifier pkgName pkgVersion)) =
+  do let sql = "SELECT DbModule.name, DbModule.doc, DbModule.packageId FROM DbModule, DbPackage"
+               ++ " WHERE DbModule.packageId = DbPackage.id "
+               ++ " AND DbPackage.name = '" ++ pkgName ++ "'"
+               ++ " AND DbPackage.version = '" ++ pkgVersion ++ "'"
+     queryDb sql moduleAction
+getSubmodules modName Nothing =
+  do let sql = "SELECT name, doc, packageId FROM DbModule WHERE name LIKE '" ++ modName ++ ".%'"
+     queryDb sql moduleAction
+getSubmodules modName (Just (DbPackageIdentifier pkgName pkgVersion)) =
+  do let sql = "SELECT DbModule.name, DbModule.doc, DbModule.packageId FROM DbModule, DbPackage"
+               ++ " WHERE name LIKE '" ++ modName ++ ".%'"
+               ++ " AND DbModule.packageId = DbPackage.id "
+               ++ " AND DbPackage.name = '" ++ pkgName ++ "'"
+               ++ " AND DbPackage.version = '" ++ pkgVersion ++ "'"
+     queryDb sql moduleAction
 
-withPopper :: RowPopper (SqlPersist IO) -> SqlPersist IO [PersistValue]
-withPopper popper = loop []
-  where loop list = do mrow <- popper
-                       case mrow of
-                         Nothing        -> return list
-                         Just [ modId ] -> loop (modId:list)
-                         _              -> error "This should not happen"
+moduleAction :: [PersistValue] -> DbModule
+moduleAction [PersistText name, doc, pkgId@(PersistInt64 _)] = DbModule (T.unpack name) (fromDbText doc) (Key pkgId)
+moduleAction _ = error "This should not happen"
 
 -- |Get information about all declaration with that name.
-declsByName :: String -> SqlPersist IO [DbDecl]
-declsByName name = do decls <- selectList [ DbDeclName ==. name ] []
-                      return $ map snd decls
+declsByName :: String -> Maybe DbPackageIdentifier -> SqlPersist IO [DbDecl]
+declsByName name Nothing =
+  do let sql = "SELECT DbDecl.declType, DbDecl.name, DbDecl.doc, DbDecl.kind, DbDecl.signature, DbDecl.equals, DbDecl.moduleId"
+               ++ " FROM DbDecl, DbModule"
+               ++ " WHERE DbModule.name ='" ++ name ++ "'"
+     queryDb sql declAction
+declsByName name (Just (DbPackageIdentifier pkgName pkgVersion)) =
+  do let sql = "SELECT DbDecl.declType, DbDecl.name, DbDecl.doc, DbDecl.kind, DbDecl.signature, DbDecl.equals, DbDecl.moduleId"
+               ++ " FROM DbDecl, DbModule, DbPackage"
+               ++ " WHERE DbDecl.moduleId = DbModule.id AND DbModule.packageId = DbPackage.id"
+               ++ " AND DbModule.name = '" ++ name ++ "'"
+               ++ " AND DbPackage.name = '" ++ pkgName ++ "'"
+               ++ " AND DbPackage.version = '" ++ pkgVersion ++ "'"
+     queryDb sql declAction
+
+declAction :: [PersistValue] -> DbDecl
+declAction [PersistText declType, PersistText name , doc, kind, signature, equals, modId@(PersistInt64 _)] =
+  DbDecl (read (T.unpack declType)) (T.unpack name) (fromDbText doc)
+         (fromDbText kind) (fromDbText signature) (fromDbText equals)
+         (Key modId)
+declAction _ = error "This should not happen"
 
 -- |Gets the declarations inside some module,
 --  along with information about which package it lives.
-getDeclsInModule :: String -> SqlPersist IO [(DbPackage, [DbCompleteDecl])]
-getDeclsInModule modName =
-  do mods <- selectList [ DbModuleName ==. modName ] []
-     mapM (\(modId, (DbModule _ _ packageId))->
-             do decls <- selectList [ DbDeclModuleId ==. modId ] []
-                declsAll <- mapM getAllDeclInfo decls
-                Just package <- get packageId
-                return (package, declsAll) ) mods
+getDeclsInModule :: String -> Maybe DbPackageIdentifier -> SqlPersist IO [(DbPackageIdentifier, DbCompleteDecl)]
+getDeclsInModule modName pkgId =
+  do let pkg = case pkgId of
+                 Nothing -> ""
+                 Just (DbPackageIdentifier pkgName pkgVersion) -> " AND DbPackage.name = '" ++ pkgName ++ "'"
+                                                                  ++ " AND DbPackage.version = '" ++ pkgVersion ++ "'"
+     let sql = "SELECT DbDecl.id, DbDecl.declType, DbDecl.name, DbDecl.doc, DbDecl.kind, DbDecl.signature, DbDecl.equals, DbDecl.moduleId"
+               ++ ", DbPackage.name, DbPackage.version"
+               ++ " FROM DbDecl, DbModule, DbPackage"
+               ++ " WHERE DbDecl.moduleId = DbModule.id AND DbModule.packageId = DbPackage.id"
+               ++ " AND DbModule.name = '" ++ modName ++ "'"
+               ++ pkg
+     elts <- queryDb sql action
+     completeElts <- mapM (\(dclId, dcl, p) -> do dclAll <- getAllDeclInfo (dclId, dcl)
+                                                  return (p, dclAll)) elts
+     return completeElts
+  where action :: [PersistValue] -> (DbDeclId, DbDecl, DbPackageIdentifier)
+        action [declId@(PersistInt64 _), PersistText declType, PersistText name
+               , doc, kind, signature, equals, modId@(PersistInt64 _)
+               , PersistText pkgName, PersistText pkgVersion] =
+                                                                ( Key declId
+                                                                , DbDecl (read (T.unpack declType)) (T.unpack name) (fromDbText doc)
+                                                                         (fromDbText kind) (fromDbText signature) (fromDbText equals)
+                                                                         (Key modId)
+                                                                , DbPackageIdentifier (T.unpack pkgName) (T.unpack pkgVersion)
+                                                                )
+        action _ = error "This should not happen"
 
 getAllDeclInfo :: (DbDeclId, DbDecl) -> SqlPersist IO DbCompleteDecl
 getAllDeclInfo (declId, decl) =
@@ -87,14 +142,37 @@ constructorsByName name = do consts <- selectList [ DbConstructorName ==. name ]
 -- | Gets a list of modules where a declaration may live
 getModulesWhereDeclarationIs :: String -> SqlPersist IO [DbModule]
 getModulesWhereDeclarationIs declName =
-  do decls' <- selectList [ DbDeclName ==. declName ] []
-     let decls = map snd decls'
-     cons <- selectList [ DbConstructorName ==. declName ] []
-     consDecls <- mapM (\(_, (DbConstructor _ _ declId)) -> do Just decl <- get declId
-                                                               return decl) cons
-     mapM (\(DbDecl _ _ _ _ _ _ modId) -> do Just md <- get modId
-                                             return md)
-          (decls ++ consDecls)
+  do let sqlDecl = "SELECT DbModule.name, DbModule.doc, DbModule.packageId"
+                   ++ " FROM DbDecl, DbModule"
+                   ++ " WHERE DbDecl.moduleId = DbModule.id AND DbDecl.name = '" ++ declName ++ "'"
+         sqlCons = "SELECT DbModule.name, DbModule.doc, DbModule.packageId"
+                   ++ " FROM DbConstructor, DbDecl, DbModule"
+                   ++ " WHERE DbConstructor.declId = DbDecl.id AND DbDecl.moduleId = DbModule.id"
+                   ++ " AND DbConstructor.name = '" ++ declName ++ "'"
+     decls <- queryDb sqlDecl action
+     cons <- queryDb sqlCons action
+     return (decls ++ cons)
+  where action :: [PersistValue] -> DbModule
+        action [PersistText name, doc, pkgId@(PersistInt64 _)] = DbModule (T.unpack name) (fromDbText doc) (Key pkgId)
+        action _ = error "This should not happen"
+
+-- |Executes a query.
+queryDb :: String -> ([PersistValue] -> a) -> SqlPersist IO [a]
+queryDb sql action = withStmt (T.pack sql) [] (withPopper action)
+
+-- |Builds information from a database query.
+withPopper :: ([PersistValue] -> a) -> RowPopper (SqlPersist IO) -> SqlPersist IO [a]
+withPopper f popper = loop []
+  where loop list = do mrow <- popper
+                       case mrow of
+                         Nothing     -> return list
+                         Just values -> loop ((f values):list)
+
+-- |Gets information from a text value.
+fromDbText :: PersistValue -> Maybe String
+fromDbText (PersistText value) = Just (T.unpack value)
+fromDbText PersistNull         = Nothing
+fromDbText _                   = error "This should not happen"
 
 -- |Things that reside on a package.
 class HasDbPackage d where

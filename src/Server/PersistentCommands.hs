@@ -46,10 +46,10 @@ data BrowserState = BrowserState
 initialState :: BrowserState
 initialState = BrowserState Nothing Nothing True True Nothing
 
-runWithState :: BrowserState -> SqlPersist IO [a] -> IO [a]
+runWithState :: BrowserState -> (Maybe DbPackageIdentifier -> SqlPersist IO [a]) -> IO [a]
 runWithState (BrowserState lDb hDb useL useH filterPkg) action =
-  do localThings <- runWithState' useL lDb action
-     hackageThings <- runWithState' useH hDb action
+  do localThings <- runWithState' useL lDb (action filterPkg)
+     hackageThings <- runWithState' useH hDb (action filterPkg)
      return $ localThings ++ hackageThings
 
 runWithState' :: Bool -> Maybe FilePath -> SqlPersist IO [a] -> IO [a]
@@ -58,7 +58,7 @@ runWithState' use mpath action = if use && isJust mpath
                                             withSqliteConn (T.pack path) $ runSqlConn action
                                     else return []
 
-runDb :: SqlPersist IO [a] -> BrowserM [a]
+runDb :: (Maybe DbPackageIdentifier -> SqlPersist IO [a]) -> BrowserM [a]
 runDb action = do st <- get
                   lift $ runWithState st action
 
@@ -107,13 +107,13 @@ executeCommand (GetModules mname)        = do smods <- runDb (getSubmodules mnam
                                               return (toJSON smods, True)
 executeCommand (GetDeclarations mname)   = do decls <- runDb (getDeclsInModule mname)
                                               return (toJSON decls, True)
-executeCommand (HoogleQuery query)       = do results <- runDb (H.query query)
+executeCommand (HoogleQuery query)       = do results <- runDb (\_ -> H.query query)
                                               return (toJSON results, True)
 executeCommand HoogleDownloadData        = do _ <- lift $ H.downloadData
                                               return (String "ok", True)
 executeCommand HoogleCheckDatabase       = do present <- lift $ H.checkDatabase
                                               return (Bool present, True)
-executeCommand (GetDeclarationModules d) = do mods <- runDb (getModulesWhereDeclarationIs d)
+executeCommand (GetDeclarationModules d) = do mods <- runDb (\_ -> getModulesWhereDeclarationIs d)
                                               return (toJSON mods, True)
 executeCommand Quit                      = return (String "ok", False)
 

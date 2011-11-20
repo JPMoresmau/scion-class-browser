@@ -79,12 +79,12 @@ hooglePackageName = do string "package"
 
 convertHalfToResult :: HalfResult -> SqlPersist IO (Maybe Result)
 convertHalfToResult (HalfPackage  pname) = 
-  do pkgs <- packagesByName pname
+  do pkgs <- packagesByName pname Nothing
      case pkgs of
        [] -> return Nothing
        p  -> return $ Just (RPackage p)
 convertHalfToResult (HalfModule mname _) =
-  do mods <- modulesByName mname
+  do mods <- modulesByName mname Nothing
      case mods of
        [] -> return Nothing
        m  -> do pm <- mapM (\md -> do pkg <- getDbPackage md
