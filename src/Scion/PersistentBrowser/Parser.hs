@@ -11,7 +11,6 @@ import Control.Monad
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.UTF8 as BSU
 import Data.Either (rights)
-import Data.Serialize
 import Scion.PersistentBrowser.Types
 import Scion.PersistentBrowser.Parser.Internal (hoogleParser)
 import Scion.PersistentBrowser.FileUtil
