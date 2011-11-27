@@ -172,5 +172,6 @@ test-suite BrowserTests
       containers     >= 0.2 && < 0.4,
       directory      == 1.0.*,
       filepath       == 1.1.*,
+      bytestring,
       -- For Scion.Packages (provisional)
       ghc            >= 6.10 && < 6.13
