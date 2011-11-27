@@ -9,7 +9,7 @@ import System.Exit (ExitCode)
 import System.IO (hFlush, stdout)
 import System.Process
 import Text.Parsec.Error (ParseError)
-import GHC.Conc.Sync (numCapabilities)
+import GHC.Conc (numCapabilities)
 
 withThreaded :: (Pool -> IO a) -> IO a
 withThreaded = withPool numCapabilities

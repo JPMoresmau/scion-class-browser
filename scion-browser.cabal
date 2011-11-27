@@ -55,6 +55,7 @@ library
       containers     >= 0.2 && < 0.4,
       directory      == 1.0.*,
       filepath       == 1.1.*,
+      bytestring,
       -- For Scion.Packages (provisional)
       ghc            >= 6.10 && < 6.13
   
@@ -110,6 +111,7 @@ executable scion-browser
       containers     >= 0.2 && < 0.4,
       directory      == 1.0.*,
       filepath       == 1.1.*,
+      bytestring,
       -- For Scion.Packages (provisional)
       ghc            >= 6.10 && < 6.13
     
@@ -132,8 +134,8 @@ test-suite BrowserTests
     test-framework-hunit,
     split,
     haskeline        >= 0.6,
-    attoparsec       >= 0.8,
     -- From library
+    attoparsec       >= 0.10,
     base             == 4.*,
     mtl              >= 2,
     derive           >= 2.5 && < 3,
@@ -147,7 +149,7 @@ test-suite BrowserTests
     zlib             == 0.5.*,
     HTTP             >= 4000 && < 5000,
     deepseq          >= 1.1 && < 2,
-    aeson-native     >= 0.3.2,
+    aeson-native     >= 0.3.3.1,
     parallel-io      >= 0.3,
     utf8-string      ,
     -- For Scion.packages (provisional)
