@@ -58,11 +58,12 @@ library
       containers      >= 0.2 && < 0.4,
       directory       == 1.0.*,
       filepath        == 1.1.*,
+      bytestring,
       -- For Scion.Packages (provisional)
       ghc             >= 6.10 && < 6.13
   
-  if !os(mingw32)
-    extra-libraries:   tinfo
+  -- if !os(mingw32)
+  --   extra-libraries:   tinfo
   
   exposed-modules:
     Scion.PersistentBrowser,
@@ -118,11 +119,12 @@ executable scion-browser
       containers      >= 0.2 && < 0.4,
       directory       == 1.0.*,
       filepath        == 1.1.*,
+      bytestring,
       -- For Scion.Packages (provisional)
       ghc             >= 6.10 && < 6.13
   
-  if !os(mingw32)
-    extra-libraries:   tinfo
+  -- if !os(mingw32)
+  --   extra-libraries:   tinfo
     
   ghc-options: -rtsopts -Wall -fno-warn-unused-do-bind -fno-warn-orphans -threaded
 
@@ -183,8 +185,9 @@ test-suite BrowserTests
       containers      >= 0.2 && < 0.4,
       directory       == 1.0.*,
       filepath        == 1.1.*,
+      bytestring,
       -- For Scion.Packages (provisional)
       ghc             >= 6.10 && < 6.13
 
-  if !os(mingw32)
-    extra-libraries:   tinfo
+  -- if !os(mingw32)
+  --   extra-libraries:   tinfo
