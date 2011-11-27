@@ -4,6 +4,7 @@ import Control.Monad.State
 import Data.Aeson
 import qualified Data.Aeson.Types as T
 import qualified Data.Attoparsec.Char8 as Atto
+import qualified Data.Attoparsec.Types as Atto
 import qualified Data.ByteString.Char8 as BS
 import qualified Data.ByteString.Lazy.Char8 as LBS
 import Server.Commands
