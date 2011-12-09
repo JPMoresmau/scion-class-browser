@@ -5,38 +5,42 @@ module Scion.Hoogle.Util
 ) where
 
 import Data.List (find)
+import Data.Maybe
+import Distribution.Compiler
 import Distribution.InstalledPackageInfo
 import Distribution.Package
+import Distribution.Simple.InstallDirs
 import Scion.Packages
 import System.FilePath
 import System.Directory (doesFileExist)
 
-import System.Directory (getAppUserDataDirectory)
+import System.Directory (getAppUserDataDirectory, getHomeDirectory)
 
 -- Functions for finding Hoogle in the system
 
 findHoogleBinPath :: IO (Maybe String)
-findHoogleBinPath = findPathsAndCheck placesToSearch
-                    where placesToSearch = [ findHoogleBinInLibrary getHoogleBinPath1
-                                           , findHoogleBinInLibrary getHoogleBinPath2
-                                           , getHoogleBinPath3
-                                           ]
+findHoogleBinPath = do
+        p1<-findHoogleBinInLibrary getHoogleBinPath1
+        p2<-findHoogleBinInLibrary getHoogleBinPath2
+        p3<-getHoogleBinPathCabalAPI
+        p4<-getHoogleBinPathCabalDir
+        p5<-getHoogleBinPathMacOsDir
+        let placesToSearch=(catMaybes [p1,p2]) ++ [p4,p5] ++ p3
+        findPathsAndCheck placesToSearch
 
-findPathsAndCheck :: [IO (Maybe String)] -> IO (Maybe String)
+findPathsAndCheck :: [String] -> IO (Maybe String)
 findPathsAndCheck []     = return Nothing
 findPathsAndCheck (f:fs) = do r <- findPathAndCheck f
                               case r of
                                 Nothing -> findPathsAndCheck fs
                                 _       -> return r
 
-findPathAndCheck :: IO (Maybe String) -> IO (Maybe String)
-findPathAndCheck f = do p <- f
-                        case p of
-                          Nothing   -> return Nothing
-                          Just path -> do exists <- doesFileExist path
-                                          if exists
-                                             then return (Just path)
-                                             else return Nothing
+findPathAndCheck :: String -> IO (Maybe String)
+findPathAndCheck path = do 
+                  exists <- doesFileExist path
+                  if exists
+                     then return (Just path)
+                     else return Nothing
 
 findHoogleBinInLibrary :: (String -> String) -> IO (Maybe String)
 findHoogleBinInLibrary f = do minfo <- findHoogleInfo
@@ -66,9 +70,26 @@ getHoogleBinPath2 :: String -> String
 getHoogleBinPath2 path = let (_:(_:rest)) = reverse $ splitDirectories path
                          in  (joinPath $ reverse ("bin":rest)) </> "hoogle" <.> exeExtension
 
-getHoogleBinPath3 :: IO (Maybe String)
-getHoogleBinPath3 = do cabalDir <- getAppUserDataDirectory "cabal"
-                       return $ Just (cabalDir </> "bin" </> "hoogle" <.> exeExtension)
+getHoogleBinPathCabalAPI :: IO [String]
+getHoogleBinPathCabalAPI = do
+        let ci=buildCompilerFlavor
+        mapM (getBinDir ci) [True,False]
+        
+getBinDir :: CompilerFlavor -> Bool -> IO FilePath
+getBinDir ci user=do
+        ids<-defaultInstallDirs ci user True
+        let env=installDirsTemplateEnv ids
+        return $ fromPathTemplate $ substPathTemplate env $ bindir ids         
+
+getHoogleBinPathCabalDir :: IO String
+getHoogleBinPathCabalDir = do 
+        cabalDir <- getAppUserDataDirectory "cabal"
+        return (cabalDir </> "bin" </> "hoogle" <.> exeExtension)
+
+getHoogleBinPathMacOsDir :: IO String
+getHoogleBinPathMacOsDir = do 
+        homeDir <- getHomeDirectory
+        return (homeDir </> "Library" </> "Haskell" </> "bin" </> "hoogle" <.> exeExtension)
 
 exeExtension :: String
 #ifdef mingw32_HOST_OS
