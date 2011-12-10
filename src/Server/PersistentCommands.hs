@@ -6,8 +6,8 @@ import Control.Applicative
 import Control.Monad
 import Control.Monad.State
 import Data.Aeson
+import qualified Data.HashMap.Lazy as M
 import Data.Maybe (isJust, fromJust)
-import qualified Data.Map as M
 import qualified Data.Text as T
 import Database.Persist.Sqlite hiding (get)
 import Scion.PersistentBrowser

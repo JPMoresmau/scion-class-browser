@@ -8,9 +8,9 @@ import qualified Data.Text as T
 import Scion.PersistentBrowser ()
 import Scion.PersistentHoogle.Types
 
-instance (ToJSON a, ToJSON b, ToJSON c, ToJSON d) => ToJSON (a,b,c,d) where
-    toJSON (a,b,c,d) = toJSON [toJSON a, toJSON b, toJSON c, toJSON d]
-    {-# INLINE toJSON #-}
+-- instance (ToJSON a, ToJSON b, ToJSON c, ToJSON d) => ToJSON (a,b,c,d) where
+--     toJSON (a,b,c,d) = toJSON [toJSON a, toJSON b, toJSON c, toJSON d]
+--     {-# INLINE toJSON #-}
 
 instance ToJSON (Result) where
   toJSON (RPackage pids)      = object [ "type"    .= T.pack "package"
