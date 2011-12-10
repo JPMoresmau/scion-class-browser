@@ -28,6 +28,7 @@ data Command = LoadLocalDatabase FilePath Bool
              | HoogleDownloadData
              | HoogleCheckDatabase
              | GetDeclarationModules String
+             | SetExtraHooglePath String
              | Quit
 
 data CurrentDatabase = AllPackages
@@ -36,18 +37,19 @@ data CurrentDatabase = AllPackages
                      | APackage DbPackageIdentifier
 
 data BrowserState = BrowserState
-                      { localDb       :: Maybe FilePath
-                      , hackageDb     :: Maybe FilePath
-                      , useLocal      :: Bool
-                      , useHackage    :: Bool
-                      , filterPackage :: Maybe DbPackageIdentifier
+                      { localDb         :: Maybe FilePath
+                      , hackageDb       :: Maybe FilePath
+                      , useLocal        :: Bool
+                      , useHackage      :: Bool
+                      , filterPackage   :: Maybe DbPackageIdentifier
+                      , extraHooglePath :: Maybe String
                       }
 
 initialState :: BrowserState
-initialState = BrowserState Nothing Nothing True True Nothing
+initialState = BrowserState Nothing Nothing True True Nothing Nothing
 
 runWithState :: BrowserState -> (Maybe DbPackageIdentifier -> SqlPersist IO [a]) -> IO [a]
-runWithState (BrowserState lDb hDb useL useH filterPkg) action =
+runWithState (BrowserState lDb hDb useL useH filterPkg _) action =
   do localThings <- runWithState' useL lDb (action filterPkg)
      hackageThings <- runWithState' useH hDb (action filterPkg)
      return $ localThings ++ hackageThings
@@ -107,12 +109,17 @@ executeCommand (GetModules mname)        = do smods <- runDb (getSubmodules mnam
                                               return (toJSON smods, True)
 executeCommand (GetDeclarations mname)   = do decls <- runDb (getDeclsInModule mname)
                                               return (toJSON decls, True)
-executeCommand (HoogleQuery query)       = do results <- runDb (\_ -> H.query query)
+executeCommand (HoogleQuery query)       = do extraH <- fmap extraHooglePath get
+                                              results <- runDb (\_ -> H.query extraH query)
                                               return (toJSON results, True)
-executeCommand HoogleDownloadData        = do _ <- lift $ H.downloadData
+executeCommand HoogleDownloadData        = do extraH <- fmap extraHooglePath get
+                                              _ <- lift $ H.downloadData extraH
                                               return (String "ok", True)
-executeCommand HoogleCheckDatabase       = do present <- lift $ H.checkDatabase
+executeCommand HoogleCheckDatabase       = do extraH <- fmap extraHooglePath get
+                                              present <- lift $ H.checkDatabase extraH
                                               return (Bool present, True)
+executeCommand (SetExtraHooglePath p)    = do modify (\s -> s { extraHooglePath = Just p })
+                                              return (String "ok", True)
 executeCommand (GetDeclarationModules d) = do mods <- runDb (\_ -> getModulesWhereDeclarationIs d)
                                               return (toJSON mods, True)
 executeCommand Quit                      = return (String "ok", False)
@@ -122,20 +129,21 @@ instance FromJSON Command where
   parseJSON (Object v) = case M.lookup (T.pack "command") v of
                            Just (String e) ->
                              case T.unpack e of
-                               "load-local-db"    -> LoadLocalDatabase <$> v .: "filepath"
-                                                                       <*> v .: "rebuild"
-                               "load-hackage-db"  -> LoadHackageDatabase <$> v .: "filepath"
-                                                                         <*> v .: "rebuild"
-                               "get-packages"     -> pure GetPackages
-                               "set-current-db"   -> SetCurrentDatabase <$> v .: "new-db"
-                               "get-modules"      -> GetModules <$> v .: "module"
-                               "get-declarations" -> GetDeclarations <$> v .: "module"
-                               "hoogle-query"     -> HoogleQuery <$> v .: "query"
-                               "hoogle-data"      -> pure HoogleDownloadData
-                               "hoogle-check"     -> pure HoogleCheckDatabase
-                               "get-decl-module"  -> GetDeclarationModules <$> v .: "decl"
-                               "quit"             -> pure Quit
-                               _                  -> mzero
+                               "load-local-db"     -> LoadLocalDatabase <$> v .: "filepath"
+                                                                        <*> v .: "rebuild"
+                               "load-hackage-db"   -> LoadHackageDatabase <$> v .: "filepath"
+                                                                          <*> v .: "rebuild"
+                               "get-packages"      -> pure GetPackages
+                               "set-current-db"    -> SetCurrentDatabase <$> v .: "new-db"
+                               "get-modules"       -> GetModules <$> v .: "module"
+                               "get-declarations"  -> GetDeclarations <$> v .: "module"
+                               "hoogle-query"      -> HoogleQuery <$> v .: "query"
+                               "hoogle-data"       -> pure HoogleDownloadData
+                               "hoogle-check"      -> pure HoogleCheckDatabase
+                               "extra-hoogle-path" -> SetExtraHooglePath <$> v .: "path"
+                               "get-decl-module"   -> GetDeclarationModules <$> v .: "decl"
+                               "quit"              -> pure Quit
+                               _                   -> mzero
                            _ -> mzero
   parseJSON _          = mzero
 

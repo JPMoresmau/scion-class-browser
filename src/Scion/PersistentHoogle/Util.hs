@@ -16,14 +16,14 @@ import System.Directory (doesFileExist, getAppUserDataDirectory, getHomeDirector
 
 -- Functions for finding Hoogle in the system
 
-findHoogleBinPath :: IO (Maybe String)
-findHoogleBinPath = do
+findHoogleBinPath :: Maybe String -> IO (Maybe String)
+findHoogleBinPath extraPath = do
   p1 <- findHoogleBinInLibrary getHoogleBinPath1
   p2 <- findHoogleBinInLibrary getHoogleBinPath2
   p3 <- getHoogleBinPathCabalAPI
   p4 <- getHoogleBinPathCabalDir
   p5 <- getHoogleBinPathMacOsDir
-  let placesToSearch = (catMaybes [p1, p2]) ++ [p4, p5] ++ p3
+  let placesToSearch = (catMaybes [extraPath, p1, p2]) ++ [p4, p5] ++ p3
   findPathsAndCheck placesToSearch
 
 findPathsAndCheck :: [String] -> IO (Maybe String)
