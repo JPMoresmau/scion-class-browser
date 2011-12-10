@@ -8,6 +8,7 @@ import Control.Monad.State
 import Data.Aeson
 import Data.Maybe (fromMaybe)
 import qualified Data.Map as M
+import qualified Data.HashMap.Lazy as HM
 import qualified Data.Text as T
 import Distribution.Package hiding (Package)
 import Language.Haskell.Exts.Annotated.Syntax hiding (String)
@@ -133,7 +134,7 @@ getDocumentedModule mds@((_, Module _ hd _ _ _):_) = let decls = concat $ map (\
 getDocumentedModule _                              = error "The impossible happened"
 
 instance FromJSON Command where
-  parseJSON (Object v) = case M.lookup (T.pack "command") v of
+  parseJSON (Object v) = case HM.lookup (T.pack "command") v of
                            Just (String e) ->
                              case T.unpack e of
                                "load-local-db"    -> LoadLocalDatabase <$> v .: "filepath"
