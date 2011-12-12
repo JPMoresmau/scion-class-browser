@@ -1,10 +1,8 @@
 {-# LANGUAGE CPP #-}
-module Scion.Browser.Util where
+module Scion.PersistentBrowser.Util where
 
 import Control.Concurrent.ParallelIO.Local
-import qualified Data.Map as M
-import Distribution.Package hiding (Package)
-import Scion.Browser
+import Scion.PersistentBrowser.Types
 import System.Exit (ExitCode)
 import System.IO (hFlush, stdout)
 import System.Process
@@ -42,10 +40,6 @@ partitionPackages ((fname, Left err):xs) = let (db, errors) = partitionPackages 
                                            in  (db, (fname, err):errors)
 partitionPackages ((_, Right pkg):xs)    = let (db, errors) = partitionPackages xs
                                            in  (pkg:db, errors)
-
--- |Converts a list of packages to a database
-pkgListToDb :: [Documented Package] -> Database
-pkgListToDb pkgs = M.fromList (map (\pkg -> (packageId pkg, pkg)) pkgs)
 
 logToStdout :: String -> IO ()
 logToStdout msg = putStrLn msg >> hFlush stdout

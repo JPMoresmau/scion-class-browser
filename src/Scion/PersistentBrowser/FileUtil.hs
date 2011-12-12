@@ -1,6 +1,6 @@
 {-# LANGUAGE ScopedTypeVariables, ForeignFunctionInterface #-}
 
-module Scion.Browser.FileUtil where
+module Scion.PersistentBrowser.FileUtil where
 
 import qualified Codec.Archive.Tar as Tar
 import qualified Codec.Compression.GZip as GZip
@@ -15,7 +15,7 @@ import Network.HTTP
 import Network.HTTP.Proxy
 import System.Directory
 import System.FilePath
-import Scion.Browser.TempFile
+import Scion.PersistentBrowser.TempFile
 
 -- |Takes out the "." and ".." special directory
 -- entries from a list of file paths.

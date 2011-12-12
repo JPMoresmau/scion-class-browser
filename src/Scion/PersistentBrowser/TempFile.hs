@@ -8,7 +8,7 @@
 {-# OPTIONS_NHC98 -cpp #-}
 {-# OPTIONS_JHC -fcpp #-}
 -- #hide
-module Scion.Browser.TempFile (
+module Scion.PersistentBrowser.TempFile (
   openTempFile,
   openBinaryTempFile,
   openNewBinaryFile,

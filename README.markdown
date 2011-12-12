@@ -21,6 +21,7 @@ Currently, the functionality is provided via a command-line program which receiv
 * `{ "command" : "set-current-db", "new-db" : id }`: sets the current database. `id` can take different values: `"_all"` for both Hackage and local databases, `"_hackage"` for Hackage database, `"_local"` for the local packages database and `{ "name" : "package-name", "version" : "x.y.z" }` for query only a specific package,
 * `{ "command" : "get-modules", "module" : "mod" }`: get all descendants of the module `mod` (that is, if we query for modules in `A`, we would get `A.B`, `A.B.C`, and so on). To ask for all modules, query for module `""`,
 * `{ "command" : "get-declarations", "module" : "mod" }`: queries the module `mod` for all declarations (datatypes, newtypes, typeclasses, instances, functions and type synonyms) inside it,
+* `{ "command" : "extra-hoogle-path", "path" : "pathToSearch" }`: adds another place to check for Hoogle,
 * `{ "command" : "hoogle-query", "query" : "mapM" }`: sends a query to Hoogle and relates the results with the current database (that is, only results that are in the current database will be returned). For this to work, the `hoogle` package must be installed and `hoogle data` must have been run at least once,
 * `{ "command" : "hoogle-data" }`: ask Hoogle to refresh its internal database, using `hoogle data`,
 * `{ "command" : "hoogle-check" }`: checks whether there is a working Hoogle program with a saved database.

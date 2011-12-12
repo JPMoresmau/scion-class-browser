@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Main where
 
 import Control.Monad.State
@@ -7,7 +9,7 @@ import qualified Data.Attoparsec.Char8 as Atto
 import qualified Data.Attoparsec.Types as Atto
 import qualified Data.ByteString.Char8 as BS
 import qualified Data.ByteString.Lazy.Char8 as LBS
-import Server.Commands
+import Server.PersistentCommands
 import System.Console.Haskeline
 
 main :: IO ()

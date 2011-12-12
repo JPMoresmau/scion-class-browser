@@ -1,22 +1,20 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Scion.Browser.Parser
+module Scion.PersistentBrowser.Parser
 ( parseHoogleString
 , parseHoogleFile
 , parseDirectory
 ) where
 
 import Control.Concurrent.ParallelIO.Local
-import Control.DeepSeq
 import Control.Monad
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.UTF8 as BSU
 import Data.Either (rights)
-import Data.Serialize
-import Scion.Browser
-import Scion.Browser.Parser.Internal (hoogleParser)
-import Scion.Browser.FileUtil
-import Scion.Browser.Util
+import Scion.PersistentBrowser.Types
+import Scion.PersistentBrowser.Parser.Internal (hoogleParser)
+import Scion.PersistentBrowser.FileUtil
+import Scion.PersistentBrowser.Util
 import System.Directory
 import System.FilePath ((</>), takeFileName)
 import System.IO
@@ -29,9 +27,7 @@ import Text.ParserCombinators.Parsec.Pos (newPos)
 -- | Parses the contents of a string containing the 
 --   Hoogle file contents.
 parseHoogleString :: String -> BS.ByteString -> Either ParseError (Documented Package)
-parseHoogleString name contents = case runP hoogleParser () name (BSU.toString contents) of
-                                    Right pkg -> pkg `deepseq` (Right pkg)
-                                    Left err  -> Left err
+parseHoogleString name contents = runP hoogleParser () name (BSU.toString contents)
 
 -- | Parses a file in Hoogle documentation format, returning
 --   the documentation of the entire package, or the corresponding
@@ -82,17 +78,7 @@ parseDirectoryFiles dir tmpdir =
      fPackages <- mapM (\fname -> do putChar '.'
                                      hFlush stdout
                                      p <- parseHoogleFile fname
-                                     -- return (fname, p)
-                                     case p of
-                                       Left _ -> return (fname, p)
-                                       Right pkg -> do let tmpFile = tmpdir </> takeFileName fname
-                                                       withFile tmpFile WriteMode $
-                                                         \hnd -> BS.hPut hnd (encode pkg)
-                                                       s <- withFile tmpFile ReadMode $
-                                                              \hnd -> do s <- BS.hGetContents hnd
-                                                                         return s
-                                                       let Right (pkg' :: Documented Package) = decode s
-                                                       return (fname, Right pkg') )
+                                     return (fname, p) )
                        files
      return $ partitionPackages fPackages
 
