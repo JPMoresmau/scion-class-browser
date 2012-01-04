@@ -73,7 +73,9 @@ library
     Scion.PersistentHoogle
     
   ghc-options: -rtsopts -Wall -fno-warn-unused-do-bind -fno-warn-orphans
-  other-modules:   Scion.Packages
+  other-modules:   
+                   Scion.Packages,
+                   Scion.PersistentHoogle.Util
 
 executable scion-browser
   hs-source-dirs:  src
@@ -193,6 +195,7 @@ executable scion-browser
 --      -- For Scion.Packages (provisional)
 --      ghc             >= 6.10 && < 6.13
 
+  other-modules:   Scion.PersistentHoogle.Util
   -- if !os(mingw32)
   --   extra-libraries:   tinfo
 
