@@ -4,7 +4,7 @@ module Scion.PersistentBrowser.Util where
 import Control.Concurrent.ParallelIO.Local
 import Scion.PersistentBrowser.Types
 import System.Exit (ExitCode)
-import System.IO (hPutStrLn, hFlush, stderr)
+import System.IO (hFlush, stdout)
 import System.Process
 import Text.Parsec.Error (ParseError)
 import GHC.Conc (numCapabilities)
@@ -42,5 +42,5 @@ partitionPackages ((_, Right pkg):xs)    = let (db, errors) = partitionPackages 
                                            in  (pkg:db, errors)
 
 logToStdout :: String -> IO ()
-logToStdout msg = hPutStrLn stderr msg >> hFlush stderr
+logToStdout msg = putStrLn msg >> hFlush stdout
 

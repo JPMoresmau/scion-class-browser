@@ -127,4 +127,3 @@ getDatabasesDir :: String -> String
 getDatabasesDir path = let (_:(hoogleV:(_:rest))) = reverse $ splitDirectories path
                        in  (joinPath $ reverse (hoogleV:("share":rest))) </> "databases"
 -}
-

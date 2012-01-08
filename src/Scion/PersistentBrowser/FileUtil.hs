@@ -16,7 +16,6 @@ import Network.HTTP.Proxy
 import System.Directory
 import System.FilePath
 import Scion.PersistentBrowser.TempFile
-import Scion.PersistentBrowser.Util (logToStdout)
 
 -- |Takes out the "." and ".." special directory
 -- entries from a list of file paths.
@@ -48,8 +47,6 @@ fetchURL :: String -> IO (String)
 fetchURL url=do
             pr<-fetchProxy False
             (_,res) <- browse $ do 
-                setErrHandler logToStdout
-                setOutHandler logToStdout
                 setProxy pr 
                 request $ getRequest url
             return $ rspBody res
