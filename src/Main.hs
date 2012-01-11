@@ -13,10 +13,19 @@ import qualified Data.ByteString.Lazy.Char8 as LBS
 import Server.PersistentCommands
 import System.Console.Haskeline
 import System.IO (hFlush, stdout)
+import System.Environment (getArgs)
+import Data.Version (showVersion)
+import Paths_scion_browser
 
 main :: IO ()
-main = do runStateT (runInputT defaultSettings loop) initialState
-          return ()
+main = do
+        args<-getArgs 
+        case args of
+                ("--version":_)->do
+                        putStrLn ("scion-browser executable, version "++ (showVersion version))
+                _-> do
+                        runStateT (runInputT defaultSettings loop) initialState
+                        return ()
 
 loop :: InputT BrowserM ()
 loop = do maybeLine <- getInputLine ""
