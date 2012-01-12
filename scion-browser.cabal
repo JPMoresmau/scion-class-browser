@@ -145,6 +145,28 @@ executable scion-browser
   --   extra-libraries:   tinfo
     
   ghc-options: -rtsopts -Wall -fno-warn-unused-do-bind -fno-warn-orphans -threaded
+  other-modules:   
+                   Scion.Packages,
+                   Scion.PersistentBrowser,
+                   Scion.PersistentBrowser.Build,
+                   Scion.PersistentBrowser.DbTypes,
+                   Scion.PersistentBrowser.FileUtil,
+                   Scion.PersistentBrowser.FromMissingH,
+                   Scion.PersistentBrowser.Instances.Json,
+                   Scion.PersistentBrowser.Parser,
+                   Scion.PersistentBrowser.Parser.Documentable,
+                   Scion.PersistentBrowser.Parser.Internal,
+                   Scion.PersistentBrowser.Query,
+                   Scion.PersistentBrowser.TempFile,
+                   Scion.PersistentBrowser.ToDb,
+                   Scion.PersistentBrowser.Types,
+                   Scion.PersistentBrowser.Util,
+                   Scion.PersistentHoogle,
+                   Scion.PersistentHoogle.Instances.Json,
+                   Scion.PersistentHoogle.Parser,
+                   Scion.PersistentHoogle.Types,
+                   Scion.PersistentHoogle.Util,
+                   Server.PersistentCommands
 
 --test-suite BrowserTests
 --  main-is:         Test.hs
@@ -207,27 +229,6 @@ executable scion-browser
 --      filepath        == 1.1.*,
 --      bytestring,
 --      -- For Scion.Packages (provisional)
-  other-modules:   
-                   Scion.Packages,
-                   Scion.PersistentBrowser,
-                   Scion.PersistentBrowser.Build,
-                   Scion.PersistentBrowser.DbTypes,
-                   Scion.PersistentBrowser.FileUtil,
-                   Scion.PersistentBrowser.FromMissingH,
-                   Scion.PersistentBrowser.Instances.Json,
-                   Scion.PersistentBrowser.Parser,
-                   Scion.PersistentBrowser.Parser.Documentable,
-                   Scion.PersistentBrowser.Parser.Internal,
-                   Scion.PersistentBrowser.Query,
-                   Scion.PersistentBrowser.TempFile,
-                   Scion.PersistentBrowser.ToDb,
-                   Scion.PersistentBrowser.Types,
-                   Scion.PersistentBrowser.Util,
-                   Scion.PersistentHoogle,
-                   Scion.PersistentHoogle.Instances.Json,
-                   Scion.PersistentHoogle.Parser,
-                   Scion.PersistentHoogle.Types,
-                   Scion.PersistentHoogle.Util,
-                   Server.PersistentCommands
+
 
 
