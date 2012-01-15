@@ -75,8 +75,7 @@ parseDirectoryFiles dir tmpdir =
   do contents' <- getDirectoryContents dir
      let contents = map (\d -> dir </> d) (filterDots contents')
      files <- filterM doesFileExist contents
-     fPackages <- mapM (\fname -> do putChar '.'
-                                     hFlush stdout
+     fPackages <- mapM (\fname -> do hPutChar stderr '.' >> hFlush stderr
                                      p <- parseHoogleFile fname
                                      return (fname, p) )
                        files
