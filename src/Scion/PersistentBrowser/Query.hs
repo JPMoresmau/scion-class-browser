@@ -9,6 +9,7 @@ import Database.Persist.Sqlite
 import Database.Persist.GenericSql.Raw (withStmt)
 import Database.Persist.GenericSql.Internal (RowPopper)
 import Scion.PersistentBrowser.DbTypes
+import Scion.PersistentBrowser.Util (escapeSql)
 
 -- |Get the identifiers of all packages in the database.
 allPackageIds :: Maybe DbPackageIdentifier -> SqlPersist IO [DbPackageIdentifier]
@@ -37,9 +38,9 @@ modulesByName name Nothing = do mods <- selectList [ DbModuleName ==. name ] []
 modulesByName name (Just (DbPackageIdentifier pkgName pkgVersion)) =
   do let sql = "SELECT DbModule.name, DbModule.doc, DbModule.packageId FROM DbModule, DbPackage"
                ++ " WHERE DbModule.packageId = DbPackage.id "
-               ++ " AND DbModule.name = '" ++ name ++ "'"
-               ++ " AND DbPackage.name = '" ++ pkgName ++ "'"
-               ++ " AND DbPackage.version = '" ++ pkgVersion ++ "'"
+               ++ " AND DbModule.name = '" ++ (escapeSql name) ++ "'"
+               ++ " AND DbPackage.name = '" ++ (escapeSql pkgName) ++ "'"
+               ++ " AND DbPackage.version = '" ++ (escapeSql pkgVersion) ++ "'"
      queryDb sql moduleAction
 
 -- |Get all the modules hierarchically inside the specified one.
@@ -51,18 +52,18 @@ getSubmodules "" Nothing =
 getSubmodules "" (Just (DbPackageIdentifier pkgName pkgVersion)) =
   do let sql = "SELECT DbModule.name, DbModule.doc, DbModule.packageId FROM DbModule, DbPackage"
                ++ " WHERE DbModule.packageId = DbPackage.id "
-               ++ " AND DbPackage.name = '" ++ pkgName ++ "'"
-               ++ " AND DbPackage.version = '" ++ pkgVersion ++ "'"
+               ++ " AND DbPackage.name = '" ++ (escapeSql pkgName) ++ "'"
+               ++ " AND DbPackage.version = '" ++ (escapeSql pkgVersion) ++ "'"
      queryDb sql moduleAction
 getSubmodules modName Nothing =
-  do let sql = "SELECT name, doc, packageId FROM DbModule WHERE name LIKE '" ++ modName ++ ".%'"
+  do let sql = "SELECT name, doc, packageId FROM DbModule WHERE name LIKE '" ++ (escapeSql modName) ++ ".%'"
      queryDb sql moduleAction
 getSubmodules modName (Just (DbPackageIdentifier pkgName pkgVersion)) =
   do let sql = "SELECT DbModule.name, DbModule.doc, DbModule.packageId FROM DbModule, DbPackage"
-               ++ " WHERE name LIKE '" ++ modName ++ ".%'"
+               ++ " WHERE name LIKE '" ++ (escapeSql modName) ++ ".%'"
                ++ " AND DbModule.packageId = DbPackage.id "
-               ++ " AND DbPackage.name = '" ++ pkgName ++ "'"
-               ++ " AND DbPackage.version = '" ++ pkgVersion ++ "'"
+               ++ " AND DbPackage.name = '" ++ (escapeSql pkgName) ++ "'"
+               ++ " AND DbPackage.version = '" ++ (escapeSql pkgVersion) ++ "'"
      queryDb sql moduleAction
 
 moduleAction :: [PersistValue] -> DbModule
@@ -74,15 +75,15 @@ declsByName :: String -> Maybe DbPackageIdentifier -> SqlPersist IO [DbDecl]
 declsByName name Nothing =
   do let sql = "SELECT DbDecl.declType, DbDecl.name, DbDecl.doc, DbDecl.kind, DbDecl.signature, DbDecl.equals, DbDecl.moduleId"
                ++ " FROM DbDecl, DbModule"
-               ++ " WHERE DbModule.name ='" ++ name ++ "'"
+               ++ " WHERE DbModule.name ='" ++ (escapeSql name) ++ "'"
      queryDb sql declAction
 declsByName name (Just (DbPackageIdentifier pkgName pkgVersion)) =
   do let sql = "SELECT DbDecl.declType, DbDecl.name, DbDecl.doc, DbDecl.kind, DbDecl.signature, DbDecl.equals, DbDecl.moduleId"
                ++ " FROM DbDecl, DbModule, DbPackage"
                ++ " WHERE DbDecl.moduleId = DbModule.id AND DbModule.packageId = DbPackage.id"
-               ++ " AND DbModule.name = '" ++ name ++ "'"
-               ++ " AND DbPackage.name = '" ++ pkgName ++ "'"
-               ++ " AND DbPackage.version = '" ++ pkgVersion ++ "'"
+               ++ " AND DbModule.name = '" ++ (escapeSql name) ++ "'"
+               ++ " AND DbPackage.name = '" ++ (escapeSql pkgName) ++ "'"
+               ++ " AND DbPackage.version = '" ++ (escapeSql pkgVersion) ++ "'"
      queryDb sql declAction
 
 declAction :: [PersistValue] -> DbDecl
@@ -98,13 +99,13 @@ getDeclsInModule :: String -> Maybe DbPackageIdentifier -> SqlPersist IO [(DbPac
 getDeclsInModule modName pkgId =
   do let pkg = case pkgId of
                  Nothing -> ""
-                 Just (DbPackageIdentifier pkgName pkgVersion) -> " AND DbPackage.name = '" ++ pkgName ++ "'"
-                                                                  ++ " AND DbPackage.version = '" ++ pkgVersion ++ "'"
+                 Just (DbPackageIdentifier pkgName pkgVersion) -> " AND DbPackage.name = '" ++ (escapeSql pkgName) ++ "'"
+                                                                  ++ " AND DbPackage.version = '" ++ (escapeSql pkgVersion) ++ "'"
      let sql = "SELECT DbDecl.id, DbDecl.declType, DbDecl.name, DbDecl.doc, DbDecl.kind, DbDecl.signature, DbDecl.equals, DbDecl.moduleId"
                ++ ", DbPackage.name, DbPackage.version"
                ++ " FROM DbDecl, DbModule, DbPackage"
                ++ " WHERE DbDecl.moduleId = DbModule.id AND DbModule.packageId = DbPackage.id"
-               ++ " AND DbModule.name = '" ++ modName ++ "'"
+               ++ " AND DbModule.name = '" ++ (escapeSql modName) ++ "'"
                ++ pkg
      elts <- queryDb sql action
      completeElts <- mapM (\(dclId, dcl, p) -> do dclAll <- getAllDeclInfo (dclId, dcl)
@@ -144,11 +145,11 @@ getModulesWhereDeclarationIs :: String -> SqlPersist IO [DbModule]
 getModulesWhereDeclarationIs declName =
   do let sqlDecl = "SELECT DbModule.name, DbModule.doc, DbModule.packageId"
                    ++ " FROM DbDecl, DbModule"
-                   ++ " WHERE DbDecl.moduleId = DbModule.id AND DbDecl.name = '" ++ declName ++ "'"
+                   ++ " WHERE DbDecl.moduleId = DbModule.id AND DbDecl.name = '" ++ (escapeSql declName) ++ "'"
          sqlCons = "SELECT DbModule.name, DbModule.doc, DbModule.packageId"
                    ++ " FROM DbConstructor, DbDecl, DbModule"
                    ++ " WHERE DbConstructor.declId = DbDecl.id AND DbDecl.moduleId = DbModule.id"
-                   ++ " AND DbConstructor.name = '" ++ declName ++ "'"
+                   ++ " AND DbConstructor.name = '" ++ (escapeSql declName) ++ "'"
      decls <- queryDb sqlDecl action
      cons <- queryDb sqlCons action
      return (decls ++ cons)

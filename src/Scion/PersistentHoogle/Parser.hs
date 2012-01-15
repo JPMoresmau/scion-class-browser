@@ -12,6 +12,7 @@ import Scion.PersistentBrowser.DbTypes
 import Scion.PersistentBrowser.Parser.Internal
 import Scion.PersistentBrowser.Query
 import Scion.PersistentBrowser.Types
+import Scion.PersistentBrowser.Util (escapeSql)
 import Scion.PersistentHoogle.Types
 import Text.Parsec.Char
 import Text.Parsec.Combinator
@@ -87,7 +88,7 @@ convertHalfToResult (HalfModule mname _) =
   do let sql = "SELECT DbModule.name, DbModule.doc, DbModule.packageId, DbPackage.name, DbPackage.version"
                ++ " FROM DbModule, DbPackage"
                ++ " WHERE DbModule.packageId = DbPackage.id"
-               ++ " AND DbModule.name = '" ++ mname ++ "'"
+               ++ " AND DbModule.name = '" ++ (escapeSql mname) ++ "'"
      mods <- queryDb sql action
      return $ if null mods then Nothing else Just (RModule mods)
   where action [PersistText modName, modDoc, pkgId@(PersistInt64 _), PersistText pkgName, PersistText pkgVersion] =
@@ -100,8 +101,8 @@ convertHalfToResult (HalfDecl mname dcl) =
                ++ " FROM DbDecl, DbModule, DbPackage"
                ++ " WHERE DbDecl.moduleId = DbModule.id"
                ++ " AND DbModule.packageId = DbPackage.id"
-               ++ " AND DbDecl.name = '" ++ (getName dcl) ++ "'"
-               ++ " AND DbModule.name = '" ++ mname ++ "'"
+               ++ " AND DbDecl.name = '" ++ (escapeSql (getName dcl)) ++ "'"
+               ++ " AND DbModule.name = '" ++ (escapeSql mname) ++ "'"
      decls <- queryDb sql action
      completeDecls <- mapM (\(pkgId, modName, dclKey, dclInfo) -> do complete <- getAllDeclInfo (dclKey, dclInfo)
                                                                      return (pkgId, modName, complete) ) decls
@@ -127,8 +128,8 @@ convertHalfToResult (HalfGadtDecl mname dcl) =
                ++ " WHERE DbConstructor.declId = DbDecl.id" 
                ++ " AND DbDecl.moduleId = DbModule.id"
                ++ " AND DbModule.packageId = DbPackage.id"
-               ++ " AND DbDecl.name = '" ++ (getName dcl) ++ "'"
-               ++ " AND DbModule.name = '" ++ mname ++ "'"
+               ++ " AND DbDecl.name = '" ++ (escapeSql (getName dcl)) ++ "'"
+               ++ " AND DbModule.name = '" ++ (escapeSql mname) ++ "'"
      decls <- queryDb sql action
      completeDecls <- mapM (\(pkgId, modName, dclKey, dclInfo, cst) -> do complete <- getAllDeclInfo (dclKey, dclInfo)
                                                                           return (pkgId, modName, complete, cst) ) decls

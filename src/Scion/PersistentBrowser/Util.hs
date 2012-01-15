@@ -44,3 +44,8 @@ partitionPackages ((_, Right pkg):xs)    = let (db, errors) = partitionPackages 
 logToStdout :: String -> IO ()
 logToStdout msg = hPutStrLn stderr msg >> hFlush stderr
 
+escapeSql :: String -> String
+escapeSql []        = ""
+escapeSql ('\'':cs) = '\'':'\'':(escapeSql cs)
+escapeSql (c:cs)    = c:(escapeSql cs)
+
