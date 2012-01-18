@@ -37,7 +37,7 @@ loop = do maybeLine <- getInputLine ""
                 Atto.Done _ value -> case T.parse parseJSON value of
                                        Error e     -> outputStrLn ("error in command: " ++ e) >> loop
                                        Success cmd -> do (res, continue) <- lift $ executeCommand cmd
-                                                         let encoded    = encode res
+                                                         let encoded    = LBS.append (encode res) "\n"
                                                              compressed = Zlib.compressWith Zlib.defaultCompressParams { Zlib.compressLevel = Zlib.bestSpeed } encoded
                                                          liftIO $ LBS.putStr compressed
                                                          liftIO $ hFlush stdout

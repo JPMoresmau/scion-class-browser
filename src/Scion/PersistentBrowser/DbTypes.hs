@@ -16,6 +16,7 @@ DbPackage
     name      String
     version   String
     doc       String Maybe
+    UniqueVersion name version
 DbModule
     name      String
     doc       String Maybe

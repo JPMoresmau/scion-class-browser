@@ -71,7 +71,9 @@ executeCommand (LoadLocalDatabase path rebuild) =
   do fileExists <- lift $ doesFileExist path
      let fileExists' = fileExists `seq` fileExists
      when rebuild $
-          lift $ do withSqliteConn (T.pack path) $ runSqlConn $ runMigration migrateAll
+          lift $ do withSqliteConn (T.pack path) $ runSqlConn $ do
+                         runMigration migrateAll
+                         createIndexes
                     pkgInfos' <- getPkgInfos
                     let pkgInfos = concat $ map snd pkgInfos'
                     updateDatabase path pkgInfos
@@ -86,10 +88,13 @@ executeCommand (LoadHackageDatabase path rebuild) =
      when (not fileExists' || rebuild) $
           lift $ do when fileExists' (removeFile path)
                     logToStdout "Rebuilding Hackage database"
-                    withSqliteConn (T.pack path) $ runSqlConn $ runMigration migrateAll
+                    withSqliteConn (T.pack path) $ runSqlConn $ do
+                        runMigration migrateAll
+                        createIndexes
                     saveHackageDatabase path
      if fileExists' || rebuild -- If the file already existed or was rebuilt
         then do modify (\s -> s { hackageDb = Just path })
+                lift $ withSqliteConn (T.pack path) $ runSqlConn $ createIndexes
                 lift $ logToStdout "Hackage database loaded"
         else modify (\s -> s { hackageDb = Nothing })
      executeCommand (SetCurrentDatabase HackageDatabase)

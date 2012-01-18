@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE TypeSynonymInstances, OverloadedStrings #-}
 
 module Scion.PersistentBrowser.Query where
 
@@ -6,10 +6,13 @@ import qualified Data.Text as T
 import Database.Persist
 import Database.Persist.Base
 import Database.Persist.Sqlite
-import Database.Persist.GenericSql.Raw (withStmt)
+import Database.Persist.GenericSql.Raw (withStmt,execute)
 import Database.Persist.GenericSql.Internal (RowPopper)
 import Scion.PersistentBrowser.DbTypes
-import Scion.PersistentBrowser.Util (escapeSql)
+import Scion.PersistentBrowser.Util (escapeSql,logToStdout)
+import Control.Monad.IO.Class (liftIO)
+
+
 
 -- |Get the identifiers of all packages in the database.
 allPackageIds :: Maybe DbPackageIdentifier -> SqlPersist IO [DbPackageIdentifier]
@@ -92,6 +95,22 @@ declAction [PersistText declType, PersistText name , doc, kind, signature, equal
          (fromDbText kind) (fromDbText signature) (fromDbText equals)
          (Key modId)
 declAction _ = error "This should not happen"
+
+
+createIndexes :: SqlPersist IO()
+createIndexes=do
+        liftIO $ logToStdout "creating indexes"
+        let idxs=[   "create index if not exists module_pkgid_name on DbModule (packageId,name)",
+                    "create index if not exists decl_modid on DbDecl (moduleId)",
+                    "create index if not exists decl_name on DbDecl (name)",
+                    "create index if not exists cons_name on DbConstructor (name)",
+                    "create index if not exists cons_declid on DbConstructor (declId)",
+                    "create index if not exists tyvar_declid on DbTyVar (declId)",
+                    "create index if not exists fundep_declid on DbFunDep (declId)",
+                    "create index if not exists context_declid on DbContext (declId)"
+                    ]
+        mapM_ (\x->execute x []) idxs
+        execute "analyze" []
 
 -- |Gets the declarations inside some module,
 --  along with information about which package it lives.
