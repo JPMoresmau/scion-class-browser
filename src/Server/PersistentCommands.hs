@@ -20,14 +20,13 @@ import System.Directory
 
 data Command = LoadLocalDatabase FilePath Bool
              | LoadHackageDatabase FilePath Bool
-             | GetPackages
-             | SetCurrentDatabase CurrentDatabase
-             | GetModules String
-             | GetDeclarations String
-             | HoogleQuery String
+             | GetPackages CurrentDatabase
+             | GetModules CurrentDatabase String
+             | GetDeclarations CurrentDatabase String 
+             | HoogleQuery CurrentDatabase String
              | HoogleDownloadData
              | HoogleCheckDatabase
-             | GetDeclarationModules String
+             | GetDeclarationModules CurrentDatabase String
              | SetExtraHooglePath String
              | Quit
 
@@ -39,19 +38,31 @@ data CurrentDatabase = AllPackages
 data BrowserState = BrowserState
                       { localDb         :: Maybe FilePath
                       , hackageDb       :: Maybe FilePath
-                      , useLocal        :: Bool
-                      , useHackage      :: Bool
-                      , filterPackage   :: Maybe DbPackageIdentifier
                       , extraHooglePath :: Maybe String
                       }
 
-initialState :: BrowserState
-initialState = BrowserState Nothing Nothing True True Nothing Nothing
 
-runWithState :: BrowserState -> (Maybe DbPackageIdentifier -> SqlPersist IO [a]) -> IO [a]
-runWithState (BrowserState lDb hDb useL useH filterPkg _) action =
-  do localThings <- runWithState' useL lDb (action filterPkg)
-     hackageThings <- runWithState' useH hDb (action filterPkg)
+initialState :: BrowserState
+initialState = BrowserState Nothing Nothing Nothing --True True Nothing
+
+useLocal :: CurrentDatabase -> Bool
+useLocal HackageDatabase=False
+useLocal _=True
+
+useHackage :: CurrentDatabase -> Bool
+useHackage LocalDatabase=False
+useHackage _=True
+
+filterPackage :: CurrentDatabase -> Maybe DbPackageIdentifier
+filterPackage (APackage pkgId)=Just pkgId
+filterPackage _ = Nothing
+
+runWithState :: BrowserState -> CurrentDatabase -> (Maybe DbPackageIdentifier -> SqlPersist IO [a]) -> IO [a]
+runWithState (BrowserState lDb hDb _) cdb action =
+  do 
+     let filterPkg=filterPackage cdb
+     localThings <- runWithState' (useLocal cdb) lDb (action filterPkg)
+     hackageThings <- runWithState' (useHackage cdb) hDb (action filterPkg)
      return $ localThings ++ hackageThings
 
 runWithState' :: Bool -> Maybe FilePath -> SqlPersist IO [a] -> IO [a]
@@ -60,9 +71,11 @@ runWithState' use mpath action = if use && isJust mpath
                                             withSqliteConn (T.pack path) $ runSqlConn action
                                     else return []
 
-runDb :: (Maybe DbPackageIdentifier -> SqlPersist IO [a]) -> BrowserM [a]
-runDb action = do st <- get
-                  lift $ runWithState st action
+runDb :: CurrentDatabase -> (Maybe DbPackageIdentifier -> SqlPersist IO [a]) -> BrowserM [a]
+runDb cdb action = 
+   do 
+      st <- get
+      lift $ runWithState st cdb action
 
 type BrowserM = StateT BrowserState IO
 
@@ -71,46 +84,43 @@ executeCommand (LoadLocalDatabase path rebuild) =
   do fileExists <- lift $ doesFileExist path
      let fileExists' = fileExists `seq` fileExists
      when rebuild $
-          lift $ do withSqliteConn (T.pack path) $ runSqlConn $ runMigration migrateAll
+          lift $ do withSqliteConn (T.pack path) $ runSqlConn $ do
+                         runMigration migrateAll
+                         createIndexes
                     pkgInfos' <- getPkgInfos
                     let pkgInfos = concat $ map snd pkgInfos'
                     updateDatabase path pkgInfos
      if fileExists' || rebuild -- If the file already existed or was rebuilt
         then do modify (\s -> s { localDb = Just path })
                 lift $ logToStdout "Local database loaded"
-        else modify (\s -> s { hackageDb = Nothing })
-     executeCommand (SetCurrentDatabase LocalDatabase)
+        else modify (\s -> s { localDb = Nothing })
+     return (String "ok", True)   
 executeCommand (LoadHackageDatabase path rebuild) =
   do fileExists <- lift $ doesFileExist path
      let fileExists' = fileExists `seq` fileExists
      when (not fileExists' || rebuild) $
           lift $ do when fileExists' (removeFile path)
                     logToStdout "Rebuilding Hackage database"
-                    withSqliteConn (T.pack path) $ runSqlConn $ runMigration migrateAll
+                    withSqliteConn (T.pack path) $ runSqlConn $ do
+                        runMigration migrateAll
+                        createIndexes
                     saveHackageDatabase path
      if fileExists' || rebuild -- If the file already existed or was rebuilt
         then do modify (\s -> s { hackageDb = Just path })
                 lift $ logToStdout "Hackage database loaded"
         else modify (\s -> s { hackageDb = Nothing })
-     executeCommand (SetCurrentDatabase HackageDatabase)
-executeCommand (SetCurrentDatabase db)  =
-  do case db of
-       AllPackages     -> do modify (\s -> s { useLocal = True,  useHackage = True,  filterPackage = Nothing })
-                             return (String "ok", True)
-       LocalDatabase   -> do modify (\s -> s { useLocal = True,  useHackage = False, filterPackage = Nothing })
-                             return (String "ok", True)
-       HackageDatabase -> do modify (\s -> s { useLocal = False, useHackage = True,  filterPackage = Nothing })
-                             return (String "ok", True)
-       APackage pid    -> do modify (\s -> s { useLocal = True,  useHackage = True,  filterPackage = Just pid })
-                             return (String "ok", True)
-executeCommand GetPackages               = do pkgs <- runDb allPackages
+     return (String "ok", True)   
+executeCommand (GetPackages cdb)         = do pkgs <- runDb cdb allPackages
                                               return (toJSON pkgs, True)
-executeCommand (GetModules mname)        = do smods <- runDb (getSubmodules mname)
+executeCommand (GetModules cdb mname)  = 
+                                           do smods <- runDb cdb (getSubmodules mname)
                                               return (toJSON smods, True)
-executeCommand (GetDeclarations mname)   = do decls <- runDb (getDeclsInModule mname)
+executeCommand (GetDeclarations cdb mname) = 
+                                           do decls <- runDb cdb (getDeclsInModule mname)
                                               return (toJSON decls, True)
-executeCommand (HoogleQuery query)       = do extraH <- fmap extraHooglePath get
-                                              results <- runDb (\_ -> H.query extraH query)
+executeCommand (HoogleQuery cdb query)       = 
+                                           do extraH <- fmap extraHooglePath get
+                                              results <- runDb cdb (\_ -> H.query extraH query)
                                               return (toJSON results, True)
 executeCommand HoogleDownloadData        = do extraH <- fmap extraHooglePath get
                                               _ <- lift $ H.downloadData extraH
@@ -120,7 +130,8 @@ executeCommand HoogleCheckDatabase       = do extraH <- fmap extraHooglePath get
                                               return (Bool present, True)
 executeCommand (SetExtraHooglePath p)    = do modify (\s -> s { extraHooglePath = Just p })
                                               return (String "ok", True)
-executeCommand (GetDeclarationModules d) = do mods <- runDb (\_ -> getModulesWhereDeclarationIs d)
+executeCommand (GetDeclarationModules cdb d) = 
+                                           do mods <- runDb cdb (\_ -> getModulesWhereDeclarationIs d)
                                               return (toJSON mods, True)
 executeCommand Quit                      = return (String "ok", False)
 
@@ -133,15 +144,18 @@ instance FromJSON Command where
                                                                         <*> v .: "rebuild"
                                "load-hackage-db"   -> LoadHackageDatabase <$> v .: "filepath"
                                                                           <*> v .: "rebuild"
-                               "get-packages"      -> pure GetPackages
-                               "set-current-db"    -> SetCurrentDatabase <$> v .: "new-db"
-                               "get-modules"       -> GetModules <$> v .: "module"
-                               "get-declarations"  -> GetDeclarations <$> v .: "module"
-                               "hoogle-query"      -> HoogleQuery <$> v .: "query"
+                               "get-packages"      -> GetPackages <$> v .: "db"
+                               "get-modules"       -> GetModules <$> v .: "db"
+                                                                <*> v .: "module"
+                               "get-declarations"  -> GetDeclarations <$>v .: "db"
+                                                                <*> v .: "module"
+                               "hoogle-query"      -> HoogleQuery <$> v .: "db"
+                                                                <*> v .: "query"
                                "hoogle-data"       -> pure HoogleDownloadData
                                "hoogle-check"      -> pure HoogleCheckDatabase
                                "extra-hoogle-path" -> SetExtraHooglePath <$> v .: "path"
-                               "get-decl-module"   -> GetDeclarationModules <$> v .: "decl"
+                               "get-decl-module"   -> GetDeclarationModules <$> v .: "db"
+                                                                <*> v .: "decl"
                                "quit"              -> pure Quit
                                _                   -> mzero
                            _ -> mzero
@@ -154,4 +168,3 @@ instance FromJSON CurrentDatabase where
                              "_local"   -> pure LocalDatabase
                              _          -> mzero
   parseJSON other        = APackage <$> parseJSON other
-
