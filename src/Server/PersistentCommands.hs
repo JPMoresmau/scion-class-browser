@@ -94,7 +94,6 @@ executeCommand (LoadHackageDatabase path rebuild) =
                     saveHackageDatabase path
      if fileExists' || rebuild -- If the file already existed or was rebuilt
         then do modify (\s -> s { hackageDb = Just path })
-                lift $ withSqliteConn (T.pack path) $ runSqlConn $ createIndexes
                 lift $ logToStdout "Hackage database loaded"
         else modify (\s -> s { hackageDb = Nothing })
      executeCommand (SetCurrentDatabase HackageDatabase)
