@@ -89,19 +89,20 @@ saveConstructorToDb declId (GadtDecl _ name ty) = insert $ DbConstructor (getNam
 
 -- deletePackageByInfo :: PersistBackend backend m => PackageIdentifier -> backend m ()
 deletePackageByInfo (PackageIdentifier (PackageName name) version) =
-  do Just (pkgId, _) <- selectFirst [ DbPackageName ==. name, DbPackageVersion ==. showVersion version ] []
+  do Just pkg <- selectFirst [ DbPackageName ==. name, DbPackageVersion ==. showVersion version ] []
+     let pkgId = entityKey pkg
      deletePackage pkgId
 
 -- deletePackage :: PersistBackend backend m => DbPackageId -> backend m ()
 deletePackage pkgId =
   do modules <- selectList [ DbModulePackageId ==. pkgId ] []
-     mapM_ (\(moduleId, _) -> deleteModule moduleId) modules
+     mapM_ (deleteModule . entityKey) modules
      delete pkgId
 
 -- deleteModule :: PersistBackend backend m => DbModuleId -> backend m ()
 deleteModule moduleId =
   do decls <- selectList [ DbDeclModuleId ==. moduleId ] []
-     mapM_ (\(declId, _) -> deleteDecl declId) decls
+     mapM_ (deleteDecl . entityKey) decls
      delete moduleId
 
 -- deleteDecl :: PersistBackend backend m => DbModuleId -> backend m ()

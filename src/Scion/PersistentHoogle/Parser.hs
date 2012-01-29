@@ -5,14 +5,14 @@ module Scion.PersistentHoogle.Parser where
 import Data.List (intercalate)
 import qualified Data.Text as T
 import Database.Persist
-import Database.Persist.Base
+-- import Database.Persist.Base
 import Database.Persist.Sqlite
+import Database.Persist.Store
 import Language.Haskell.Exts.Annotated.Syntax
 import Scion.PersistentBrowser.DbTypes
 import Scion.PersistentBrowser.Parser.Internal
 import Scion.PersistentBrowser.Query
 import Scion.PersistentBrowser.Types
-import Scion.PersistentBrowser.Util (escapeSql)
 import Scion.PersistentHoogle.Types
 import Text.Parsec.Char
 import Text.Parsec.Combinator
@@ -88,8 +88,8 @@ convertHalfToResult (HalfModule mname _) =
   do let sql = "SELECT DbModule.name, DbModule.doc, DbModule.packageId, DbPackage.name, DbPackage.version"
                ++ " FROM DbModule, DbPackage"
                ++ " WHERE DbModule.packageId = DbPackage.id"
-               ++ " AND DbModule.name = '" ++ (escapeSql mname) ++ "'"
-     mods <- queryDb sql action
+               ++ " AND DbModule.name = ?"
+     mods <- queryDb sql [mname] action
      return $ if null mods then Nothing else Just (RModule mods)
   where action [PersistText modName, modDoc, pkgId@(PersistInt64 _), PersistText pkgName, PersistText pkgVersion] =
           ( DbPackageIdentifier (T.unpack pkgName) (T.unpack pkgVersion)
@@ -101,9 +101,9 @@ convertHalfToResult (HalfDecl mname dcl) =
                ++ " FROM DbDecl, DbModule, DbPackage"
                ++ " WHERE DbDecl.moduleId = DbModule.id"
                ++ " AND DbModule.packageId = DbPackage.id"
-               ++ " AND DbDecl.name = '" ++ (escapeSql (getName dcl)) ++ "'"
-               ++ " AND DbModule.name = '" ++ (escapeSql mname) ++ "'"
-     decls <- queryDb sql action
+               ++ " AND DbDecl.name = ?"
+               ++ " AND DbModule.name = ?"
+     decls <- queryDb sql [getName dcl, mname] action
      completeDecls <- mapM (\(pkgId, modName, dclKey, dclInfo) -> do complete <- getAllDeclInfo (dclKey, dclInfo)
                                                                      return (pkgId, modName, complete) ) decls
      return $ if null completeDecls then Nothing else Just (RDeclaration completeDecls)
@@ -128,9 +128,9 @@ convertHalfToResult (HalfGadtDecl mname dcl) =
                ++ " WHERE DbConstructor.declId = DbDecl.id" 
                ++ " AND DbDecl.moduleId = DbModule.id"
                ++ " AND DbModule.packageId = DbPackage.id"
-               ++ " AND DbDecl.name = '" ++ (escapeSql (getName dcl)) ++ "'"
-               ++ " AND DbModule.name = '" ++ (escapeSql mname) ++ "'"
-     decls <- queryDb sql action
+               ++ " AND DbDecl.name = ?"
+               ++ " AND DbModule.name = ?"
+     decls <- queryDb sql [getName dcl, mname] action
      completeDecls <- mapM (\(pkgId, modName, dclKey, dclInfo, cst) -> do complete <- getAllDeclInfo (dclKey, dclInfo)
                                                                           return (pkgId, modName, complete, cst) ) decls
      return $ if null completeDecls then Nothing else Just (RConstructor completeDecls)

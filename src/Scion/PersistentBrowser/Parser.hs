@@ -16,7 +16,7 @@ import Scion.PersistentBrowser.Parser.Internal (hoogleParser)
 import Scion.PersistentBrowser.FileUtil
 import Scion.PersistentBrowser.Util
 import System.Directory
-import System.FilePath ((</>), takeFileName)
+import System.FilePath ((</>))
 import System.IO
 import Text.Parsec.Error (Message(..), newErrorMessage)
 import Text.Parsec.Prim (runP)
@@ -71,7 +71,7 @@ getVersionDirectory dir = do contents' <- getDirectoryContents dir
                              filterM doesDirectoryExist contents
 
 parseDirectoryFiles :: FilePath -> FilePath -> IO ([Documented Package], [(FilePath, ParseError)])
-parseDirectoryFiles dir tmpdir =
+parseDirectoryFiles dir _ =
   do contents' <- getDirectoryContents dir
      let contents = map (\d -> dir </> d) (filterDots contents')
      files <- filterM doesFileExist contents

@@ -109,7 +109,7 @@ updateDatabase file pkgInfo = withSqliteConn (T.pack file) $ runSqlConn $ update
 updateDatabase' :: [InstalledPackageInfo] -> SqlPersist IO ()
 updateDatabase' pkgInfo = 
   do dbPersistent <- selectList ([] :: [Filter DbPackage]) []
-     let dbList        = map (fromDbToPackageIdentifier . snd) dbPersistent
+     let dbList        = map (fromDbToPackageIdentifier . entityVal) dbPersistent
          installedList = nub $ removeSmallVersions $ map sourcePackageId pkgInfo
          toRemove      = dbList \\ installedList
          toAdd         = installedList \\ dbList

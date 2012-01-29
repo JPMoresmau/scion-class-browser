@@ -3,7 +3,7 @@
 module Scion.PersistentBrowser.DbTypes where
 
 import Database.Persist
-import Database.Persist.Base
+-- import Database.Persist.Base
 import Database.Persist.Sqlite
 import Database.Persist.TH
 
