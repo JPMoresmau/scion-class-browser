@@ -1,4 +1,5 @@
-{-# LANGUAGE TypeSynonymInstances, OverloadedStrings #-}
+{-# LANGUAGE TypeSynonymInstances, OverloadedStrings , FlexibleInstances #-}
+-- FlexibleInstances needed for GHC 7.2
 
 module Scion.PersistentBrowser.Query where
 
