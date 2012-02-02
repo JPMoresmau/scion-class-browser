@@ -12,10 +12,13 @@ import qualified Data.ByteString.Char8 as BS
 import qualified Data.ByteString.Lazy.Char8 as LBS
 import Server.PersistentCommands
 import System.Console.Haskeline
-import System.IO (hFlush, stdout)
+import System.IO (hFlush, stdout, stderr)
 import System.Environment (getArgs)
 import Data.Version (showVersion)
 import Paths_scion_browser
+import Scion.PersistentBrowser.Util (logToStdout)
+
+import GHC.IO.Handle (hDuplicate,hDuplicateTo)
 
 main :: IO ()
 main = do
@@ -33,10 +36,15 @@ loop = do maybeLine <- getInputLine ""
             Nothing -> return () -- ctrl+D or EOF
             Just line -> do
               case Atto.parse json (BS.pack line) of
-                Atto.Fail _ _ e   -> outputStrLn ("error in command: " ++ e) >> loop
+                Atto.Fail _ _ e   -> (liftIO $ logToStdout ("error in command: " ++ e)) >> loop
+                Atto.Partial _   -> (liftIO $ logToStdout ("incomplete data error in command: ")) >> loop
                 Atto.Done _ value -> case T.parse parseJSON value of
-                                       Error e     -> outputStrLn ("error in command: " ++ e) >> loop
-                                       Success cmd -> do (res, continue) <- lift $ executeCommand cmd
+                                       Error e     -> (liftIO $ logToStdout ("error in command: " ++ e)) >> loop
+                                       Success cmd -> do 
+                                                         stdout_excl <- liftIO $ hDuplicate stdout
+                                                         liftIO $ hDuplicateTo stderr stdout  -- redirect stdout to stderr
+                                                         (res, continue) <- lift $ executeCommand cmd
+                                                         liftIO $ hDuplicateTo stdout_excl stdout  -- redirect stdout to original stdout
                                                          let encoded    = LBS.append (encode res) "\n"
                                                              compressed = Zlib.compressWith Zlib.defaultCompressParams { Zlib.compressLevel = Zlib.bestSpeed } encoded
                                                          liftIO $ LBS.putStr compressed
