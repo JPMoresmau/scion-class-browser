@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, TemplateHaskell #-}
 
 module Main where
 
@@ -21,14 +21,11 @@ import Scion.PersistentBrowser.Util (logToStdout)
 import GHC.IO.Handle (hDuplicate,hDuplicateTo)
 
 main :: IO ()
-main = do
-        args<-getArgs 
-        case args of
-                ("--version":_)->do
-                        putStrLn ("scion-browser executable, version "++ (showVersion version))
-                _-> do
-                        runStateT (runInputT defaultSettings loop) initialState
-                        return ()
+main = do args <- getArgs 
+          case args of
+            ("--version":_) -> putStrLn ("scion-browser executable, version " ++ (showVersion version))
+            _               -> do runStateT (runInputT defaultSettings loop) initialState
+                                  return ()
 
 loop :: InputT BrowserM ()
 loop = do maybeLine <- getInputLine ""

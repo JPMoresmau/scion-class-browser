@@ -539,6 +539,7 @@ toKindedVars :: [Type Doc] -> [TyVarBind Doc]
 toKindedVars []         = []
 toKindedVars ((TyVar d (Ident _ n1)):( (TyList _ (TyVar _ (Ident _ n2))): xs )) =
   (UnkindedVar d (Ident NoDoc $ n1 ++ "[" ++ n2 ++ "]")) : toKindedVars xs
-toKindedVars ((TyVar d n):xs) = (UnkindedVar d n) : toKindedVars xs
-toKindedVars (x:_)            = error $ show x
+toKindedVars ((TyVar d n):xs)       = (UnkindedVar d n) : toKindedVars xs
+toKindedVars ((TyParen _ inner):xs) = toKindedVars (inner:xs)
+toKindedVars (x:_)                  = error $ show x
 

@@ -60,7 +60,7 @@ saveDeclToDb moduleId (InstDecl doc ctx hd _) =
 -- Signatures
 saveDeclToDb moduleId (TypeSig doc names ty) =
   do mapM_ saveSignatureToDb names
-  where saveSignatureToDb name = 
+  where saveSignatureToDb name = do
           insert $ DbDecl DbSignature (getNameString name) (docToString doc) 
                           Nothing (Just (singleLinePrettyPrint ty)) Nothing moduleId
 -- Types
