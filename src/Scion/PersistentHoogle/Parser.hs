@@ -22,6 +22,7 @@ data HalfResult = HalfPackage  String
                 | HalfModule   String (Documented Module)
                 | HalfDecl     String (Documented Decl)
                 | HalfGadtDecl String (Documented GadtDecl)
+                | HalfKeyword String
 
 hoogleElements :: BSParser (SqlPersist IO [Result])
 hoogleElements = do elts <- hoogleElements'
@@ -49,6 +50,8 @@ hoogleElements' =   try (do spaces0
 hoogleElement :: BSParser HalfResult
 hoogleElement =   try (do pname <- hooglePackageName
                           return $ HalfPackage pname)
+              <|> try (do pname <- hoogleKeyword
+                          return $ HalfKeyword pname)
               <|> try (do (mname, m) <- moduled (module_ NoDoc)
                           return $ HalfModule mname m)
               <|> try (do (mname, d) <- moduled (function NoDoc)
@@ -78,7 +81,16 @@ hooglePackageName = do string "package"
                        spaces0
                        return name
 
+-- | handle a keyword. For example searching for 'id' gives 'keyword hiding' in the results
+hoogleKeyword :: BSParser String
+hoogleKeyword = do string "keyword"
+                   spaces1
+                   name <- restOfLine
+                   spaces0
+                   return name
+
 convertHalfToResult :: HalfResult -> SqlPersist IO (Maybe Result)
+convertHalfToResult (HalfKeyword _)=return Nothing -- ignore keywords for now
 convertHalfToResult (HalfPackage  pname) = 
   do pkgs <- packagesByName pname Nothing
      case pkgs of
