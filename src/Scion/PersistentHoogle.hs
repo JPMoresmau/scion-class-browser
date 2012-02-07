@@ -9,6 +9,8 @@ import Control.Monad
 import Control.Monad.IO.Class (liftIO)
 import Database.Persist.Sqlite
 import Scion.PersistentBrowser ()
+import Scion.PersistentBrowser.Util
+
 import Scion.PersistentHoogle.Types
 import Scion.PersistentHoogle.Instances.Json ()
 import Scion.PersistentHoogle.Parser
@@ -28,8 +30,10 @@ query p q = do mpath <- liftIO $ findHoogleBinPath p
                                                      case search of
                                                        Right result -> do dbResult <- result
                                                                           return dbResult
-                                                       Left  _      -> return []
-                                   _           -> do liftIO $ putStrLn err
+                                                       Left  perr      -> do
+                                                        liftIO $ logToStdout $ show perr -- I like to see the error in the log
+                                                        return []
+                                   _           -> do liftIO $ logToStdout err -- I like to see the error in the log
                                                      return []
 
 downloadData :: Maybe String -> IO Bool
