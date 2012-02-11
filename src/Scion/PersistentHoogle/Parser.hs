@@ -22,7 +22,7 @@ data HalfResult = HalfPackage  String
                 | HalfModule   String (Documented Module)
                 | HalfDecl     String (Documented Decl)
                 | HalfGadtDecl String (Documented GadtDecl)
-                | HalfKeyword String
+                | HalfKeyword  String
 
 hoogleElements :: BSParser (SqlPersist IO [Result])
 hoogleElements = do elts <- hoogleElements'
@@ -90,7 +90,8 @@ hoogleKeyword = do string "keyword"
                    return name
 
 convertHalfToResult :: HalfResult -> SqlPersist IO (Maybe Result)
-convertHalfToResult (HalfKeyword _)=return Nothing -- ignore keywords for now
+convertHalfToResult (HalfKeyword kw) =
+  return $ Just (RKeyword kw)
 convertHalfToResult (HalfPackage  pname) = 
   do pkgs <- packagesByName pname Nothing
      case pkgs of

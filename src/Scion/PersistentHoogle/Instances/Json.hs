@@ -25,6 +25,9 @@ instance ToJSON (Result) where
   toJSON (RConstructor decls) = object [ "type"    .= T.pack "constructor"
                                        , "results" .= decls
                                        ]
+  toJSON (RKeyword kw)        = object [ "type"    .= T.pack "keyword"
+                                       , "name"    .= kw
+                                       ]
 
 instance FromJSON (Query) where
   parseJSON q = Query <$> parseJSON q
