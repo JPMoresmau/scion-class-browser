@@ -1,5 +1,5 @@
 name:           scion-browser
-version:        0.2.6
+version:        0.2.7
 cabal-version:  >= 1.8
 build-type:     Simple
 license:        BSD3
@@ -50,8 +50,8 @@ library
   if impl(ghc >= 7.0)
     build-depends:
       containers     >= 0.2 && < 0.5,
-      directory      == 1.1.*,
-      filepath       == 1.2.*,
+      directory      >= 1.1,
+      filepath       >= 1.2,
       bytestring,
       -- For Scion.Packages (provisional)
       ghc            >= 7
@@ -129,8 +129,8 @@ executable scion-browser
   if impl(ghc >= 7.0)
     build-depends:
       containers     >= 0.2 && < 0.5,
-      directory      == 1.1.*,
-      filepath       == 1.2.*,
+      directory      >= 1.1,
+      filepath       >= 1.2,
       bytestring,
       -- For Scion.Packages (provisional)
       ghc            >= 7
