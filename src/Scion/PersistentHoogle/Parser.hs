@@ -39,6 +39,9 @@ catMaybesM (x:xs) = do y <- x
 
 hoogleElements' :: BSParser [HalfResult]
 hoogleElements' =   try (do spaces0
+                            optional $ try (do 
+                                string "No results found"
+                                spacesOrEol0)
                             eof
                             return [])
                 <|> (do first <- hoogleElement
