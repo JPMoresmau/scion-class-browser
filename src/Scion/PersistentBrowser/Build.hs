@@ -66,7 +66,8 @@ saveHackageDatabase file = withTemporaryDirectory (saveHackageDatabaseWithTmp fi
 
 saveHackageDatabaseWithTmp :: FilePath -> FilePath -> IO ()
 saveHackageDatabaseWithTmp file tmp = do (db, _) <- createHackageDatabase tmp
-                                         mapM_ (\pkg -> withSqliteConn (T.pack file) (runSqlConn (savePackageToDb pkg))) db
+                                         withSqliteConn (T.pack file) (runSqlConn (mapM_ savePackageToDb db))
+                                         --mapM_ (\pkg -> withSqliteConn (T.pack file) (runSqlConn (savePackageToDb pkg))) db
 
 -- | Downloads the information for the entire Hackage database
 --   creating an in-memory database with it.
