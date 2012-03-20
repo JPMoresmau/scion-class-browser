@@ -13,6 +13,8 @@ import Scion.PersistentBrowser.Util (logToStdout)
 import Control.Monad.IO.Class (liftIO)
 import Data.Conduit
 import qualified Data.Conduit.List as CL
+import Data.List (isPrefixOf)
+import Data.Char (toUpper)
 
 -- |Get the identifiers of all packages in the database.
 allPackageIds :: Maybe DbPackageIdentifier -> SqlPersist IO [DbPackageIdentifier]
@@ -143,6 +145,46 @@ getDeclsInModule modName pkgId =
                                                                 , DbPackageIdentifier (T.unpack pkgName) (T.unpack pkgVersion)
                                                                 )
         action _ = error "This should not happen"
+
+-- | list declarations matching the given prefix, useful for content assist
+-- the prefix either matches the declaration itself or any constructor
+getDeclsFromPrefix :: String -> Maybe DbPackageIdentifier -> SqlPersist IO [(DbPackageIdentifier, DbModule, DbCompleteDecl)]
+getDeclsFromPrefix prefix pkgId =
+  do let pkg = case pkgId of
+                 Nothing -> ""
+                 Just _ -> " AND DbPackage.name = ? AND DbPackage.version = ?"
+     let sql = "SELECT DbDecl.id, DbDecl.declType, DbDecl.name, DbDecl.doc, DbDecl.kind, DbDecl.signature, DbDecl.equals, DbDecl.moduleId, "
+               ++ "DbModule.name, DbPackage.name, DbPackage.version"
+               ++ " FROM DbDecl, DbModule, DbPackage"
+               ++ " WHERE DbDecl.moduleId = DbModule.id AND DbModule.packageId = DbPackage.id"
+               ++ " AND (DbDecl.name LIKE '"
+               ++ prefix ++ "%' or DbDecl.id in (select DbConstructor.declId from DbConstructor where DbConstructor.name LIKE '"
+               ++ prefix ++ "%'))"
+               ++ pkg
+     let args = case pkgId of
+                  Nothing -> []
+                  Just (DbPackageIdentifier pkgName pkgVersion) -> [pkgName, pkgVersion]
+     elts <- queryDb sql args action
+     completeElts <- mapM (\(dclId, dcl, p,m) -> do cs <- consts dclId
+                                                    let dclAll=DbCompleteDecl dcl [] [] [] cs
+                                                    return (p,m, dclAll)) elts
+     return completeElts
+  where action :: [PersistValue] -> (DbDeclId, DbDecl, DbPackageIdentifier, DbModule)
+        action [declId@(PersistInt64 _), PersistText declType, PersistText name
+               , doc, kind, signature, equals, modId@(PersistInt64 _)
+               , PersistText modName, PersistText pkgName, PersistText pkgVersion] =
+                                                                ( Key declId
+                                                                , DbDecl (read (T.unpack declType)) (T.unpack name) (fromDbText doc)
+                                                                         (fromDbText kind) (fromDbText signature) (fromDbText equals)
+                                                                         (Key modId)
+                                                                , DbPackageIdentifier (T.unpack pkgName) (T.unpack pkgVersion)
+                                                                , DbModule (T.unpack modName) Nothing (Key modId)
+                                                                )
+        action _ = error "This should not happen"
+        consts declId=do
+                consts' <- selectList [ DbConstructorDeclId ==. declId] []
+                -- we do case insensitive match here to be consistent with LIKE above
+                return $ filter (\(DbConstructor name _ _)->isPrefixOf (map toUpper prefix) (map toUpper name)) $ map entityVal consts'
 
 getAllDeclInfo :: (DbDeclId, DbDecl) -> SqlPersist IO DbCompleteDecl
 getAllDeclInfo (declId, decl) =

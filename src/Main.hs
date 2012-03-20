@@ -6,10 +6,9 @@ import qualified Codec.Compression.Zlib as Zlib
 import Control.Monad.State
 import Data.Aeson
 import qualified Data.Aeson.Types as T
-import qualified Data.Attoparsec.Char8 as Atto
-import qualified Data.Attoparsec.Types as Atto
-import qualified Data.ByteString.Char8 as BS
+import qualified Data.Attoparsec.ByteString as Atto
 import qualified Data.ByteString.Lazy.Char8 as LBS
+import qualified Data.ByteString.UTF8  as BSU(fromString)
 import Server.PersistentCommands
 import System.Console.Haskeline
 import System.IO (hFlush, stdout, stderr)
@@ -28,11 +27,12 @@ main = do args <- getArgs
                                   return ()
 
 loop :: InputT BrowserM ()
-loop = do maybeLine <- getInputLine ""
+loop = do 
+          maybeLine <- getInputLine ""
           case maybeLine of
             Nothing -> return () -- ctrl+D or EOF
             Just line -> do
-              case Atto.parse json (BS.pack line) of
+              case Atto.parse json (BSU.fromString line) of
                 Atto.Fail _ _ e   -> (liftIO $ logToStdout ("error in command: " ++ e)) >> loop
                 Atto.Partial _   -> (liftIO $ logToStdout ("incomplete data error in command: ")) >> loop
                 Atto.Done _ value -> case T.parse parseJSON value of
