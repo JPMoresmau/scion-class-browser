@@ -26,7 +26,10 @@ query p q = do mpath <- liftIO $ findHoogleBinPath p
                  Nothing   -> return []
                  Just path -> do (exitCode, output, err) <- liftIO $ readProcessWithExitCode path [q] ""
                                  case exitCode of
-                                   ExitSuccess -> do let search = runP hoogleElements () "hoogle-output" (output)
+                                   ExitSuccess -> do 
+                                                     liftIO $ logToStdout q
+                                                     liftIO $ logToStdout output
+                                                     let search = runP hoogleElements () "hoogle-output" (output)
                                                      case search of
                                                        Right result -> do dbResult <- result
                                                                           return dbResult

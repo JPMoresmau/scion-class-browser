@@ -28,6 +28,7 @@ data Command = LoadLocalDatabase FilePath Bool
              | HoogleCheckDatabase
              | GetDeclarationModules CurrentDatabase String
              | SetExtraHooglePath String
+             | GetDeclarationsFromPrefix CurrentDatabase String 
              | Quit
 
 data CurrentDatabase = AllPackages
@@ -118,6 +119,9 @@ executeCommand (GetModules cdb mname)  =
 executeCommand (GetDeclarations cdb mname) = 
                                            do decls <- runDb cdb (getDeclsInModule mname)
                                               return (toJSON decls, True)
+executeCommand (GetDeclarationsFromPrefix cdb prefix) = 
+                                           do decls <- runDb cdb (getDeclsFromPrefix prefix)
+                                              return (toJSON decls, True)
 executeCommand (HoogleQuery cdb query)       = 
                                            do extraH <- fmap extraHooglePath get
                                               results <- runDb cdb (\_ -> H.query extraH query)
@@ -149,6 +153,8 @@ instance FromJSON Command where
                                                                 <*> v .: "module"
                                "get-declarations"  -> GetDeclarations <$>v .: "db"
                                                                 <*> v .: "module"
+                               "get-decl-prefix"   -> GetDeclarationsFromPrefix <$>v .: "db"
+                                                                <*> v .: "prefix" 
                                "hoogle-query"      -> HoogleQuery <$> v .: "db"
                                                                 <*> v .: "query"
                                "hoogle-data"       -> pure HoogleDownloadData
