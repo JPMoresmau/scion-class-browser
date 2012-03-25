@@ -5,15 +5,15 @@ build-type:     Simple
 license:        BSD3
 license-file:   docs/LICENSE
 author:         Alejandro Serrano <trupill@gmail.com>
-maintainer:     Alejandro Serrano <trupill@gmail.com>
-homepage:       http://github.com/serras/scion-class-browser
+maintainer:     Alejandro Serrano <trupill@gmail.com>, JP Moresmau (jpmoresmau@gmail.com)
+homepage:       http://github.com/JPMoresmau/scion-class-browser
 category:       Development
 synopsis:       Command-line interface for browsing and searching packages documentation
 description:    Scion Browser aims to be a command-line interface for getting information about installed Haskell packages, that could be later used by development environments. It also provides integration with Hoogle. By now, it has been integrated in EclipseFP.
 
 source-repository head
   type:     git
-  location: https://github.com/serras/scion-class-browser
+  location: https://github.com/JPMoresmau/scion-class-browser
 
 library
   hs-source-dirs:  src
