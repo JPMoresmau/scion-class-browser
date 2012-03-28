@@ -32,7 +32,9 @@ import Text.Parsec.Error (ParseError)
 import Text.ParserCombinators.Parsec.Error (newErrorMessage, Message(..))
 import Text.ParserCombinators.Parsec.Pos (newPos)
 import Text.ParserCombinators.ReadP
-
+import Network.Browser
+import Network.HTTP
+import Network.HTTP.Proxy
 
 baseDbUrl :: String
 baseDbUrl = "http://haskell.org/hoogle/base.txt"
@@ -144,23 +146,43 @@ createCabalDatabase ghcVersion pkgs = createCabalDatabase' ghcVersion pkgs False
 createCabalDatabase' :: Version -> [PackageIdentifier] -> Bool -> IO ([Documented Package], [(String, ParseError)])
 createCabalDatabase' ghcVersion pkgs ifFailCreateEmpty =
   withTemporaryDirectory $ \tmp ->
-    do let toExecute = map (\pid -> do db <- getCabalHoogle ghcVersion pid ifFailCreateEmpty tmp
+    do 
+       let toExecute = map (\pid -> do 
+                                       db <- getCabalHoogle ghcVersion pid ifFailCreateEmpty tmp
                                        return (pkgString pid, db))
                            pkgs
        eitherHooglePkgs <- withThreaded $ \pool -> parallelInterleavedE pool toExecute
        let hooglePkgs = rights eitherHooglePkgs
            (db, errors) = partitionPackages hooglePkgs
        return (db, errors)
+       -- commented out for now (see https://github.com/haskell/HTTP/pull/26)
+--       pr<-fetchProxy False
+       -- download everything in one browser session
+--       hooglePkgs<- browse $ do 
+--                setErrHandler logToStdout
+--                setOutHandler logToStdout
+--                setMaxErrorRetries (Just 10)
+--                setProxy pr 
+--                mapM (\pid -> do 
+--                        db <- getCabalHoogle ghcVersion pid ifFailCreateEmpty tmp
+--                        return (pkgString pid, db)) pkgs
+--       --eitherHooglePkgs <- withThreaded $ \pool -> parallelInterleavedE pool [toExecute]
+--       let -- hooglePkgs = rights $ map snd $ eitherHooglePkgs
+--           (db, errors) = partitionPackages hooglePkgs
+--       return (db, errors)
+-- called actions should be: BrowserAction (HandleStream String)
+-- no liftIO but ioAction  $
 
 -- | Get the database from a Cabal package.
-getCabalHoogle :: Version -> PackageIdentifier -> Bool -> FilePath -> IO (Either ParseError (Documented Package))
-getCabalHoogle ghcVersion pid ifFailCreateEmpty tmp = 
-  E.catch (do result <- getCabalHoogle' ghcVersion pid tmp
-              case result of
-                Left e                     -> return $ failure e
-                Right (Package doc _ info) -> return $ Right (Package doc pid info))
-          (\(e :: E.SomeException) -> return $ failure (newErrorMessage (Message "error parsing")
-                                                                       (newPos "" 0 0)))
+getCabalHoogle :: Version -> PackageIdentifier -> Bool -> FilePath ->  IO(Either ParseError (Documented Package))
+getCabalHoogle ghcVersion pid ifFailCreateEmpty tmp = do
+        result <- getCabalHoogle' ghcVersion pid tmp
+        case result of
+         Left e                     -> return $ failure e
+         Right (Package doc _ info) -> return $ Right (Package doc pid info)
+         -- (\(e :: E.SomeException) -> return $ failure (newErrorMessage (Message "error parsing")
+         --                                                              (newPos "" 0 0)))
+         
   where failure e = if ifFailCreateEmpty
                        then Right (Package NoDoc pid M.empty)
                        else Left e

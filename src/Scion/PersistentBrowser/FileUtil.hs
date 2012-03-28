@@ -39,9 +39,17 @@ downloadFileStrict url = do
 downloadHoogleFile :: String -> IO (Maybe SBS.ByteString)
 downloadHoogleFile url = do 
                             response <- fetchURL url
-                            if "-- Hoogle documentation" `isPrefixOf` response
-                                               then return $ Just (SBS8.pack response)
-                                               else return Nothing
+                            return $ getHoogleFile response
+
+downloadHoogleFile' :: String -> BrowserAction (HandleStream String) (Maybe SBS.ByteString)
+downloadHoogleFile' url = do 
+                            (_,res) <- request $ getRequest url
+                            return $ getHoogleFile $ rspBody res
+
+getHoogleFile :: String -> Maybe SBS.ByteString
+getHoogleFile response=if "-- Hoogle documentation" `isPrefixOf` response
+                                               then Just (SBS8.pack response)
+                                               else Nothing
 
 -- |Downloads a file from the internet, using the system proxy
 fetchURL :: String -> IO (String)

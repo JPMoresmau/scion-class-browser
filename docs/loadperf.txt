@@ -1,0 +1,9 @@
+{"command":"load-local-db","filepath":"d:\\tmp\\1.db","rebuild":true}  22:48:24 -> 22:52:30 4 minutes
+	real    3m18.827s
+	user    0m0.015s
+	sys     0m0.015s
+{"command":"load-local-db","filepath":"d:\\tmp\\2.db","rebuild":true}  23:13:35 -> 23:15:00 1 minute 25
+	(including haskell-src-exts 1.13 parsing)
+	real    1m59.550s
+	user    0m0.015s
+	sys     0m0.015s
