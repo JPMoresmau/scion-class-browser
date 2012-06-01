@@ -127,11 +127,11 @@ executeCommand (HoogleQuery cdb query)       =
                                               results <- runDb cdb (\_ -> H.query extraH query)
                                               return (toJSON results, True)
 executeCommand HoogleDownloadData        = do extraH <- fmap extraHooglePath get
-                                              _ <- lift $ H.downloadData extraH
-                                              return (String "ok", True)
+                                              ret <- lift $ H.downloadData extraH
+                                              return (String $ T.pack $ show ret, True)
 executeCommand HoogleCheckDatabase       = do extraH <- fmap extraHooglePath get
-                                              present <- lift $ H.checkDatabase extraH
-                                              return (Bool present, True)
+                                              ret <- lift $ H.checkDatabase extraH
+                                              return (String $ T.pack $ show ret, True)
 executeCommand (SetExtraHooglePath p)    = do modify (\s -> s { extraHooglePath = Just p })
                                               return (String "ok", True)
 executeCommand (GetDeclarationModules cdb d) = 

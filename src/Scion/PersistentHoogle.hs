@@ -15,7 +15,6 @@ import Scion.PersistentHoogle.Types
 import Scion.PersistentHoogle.Instances.Json ()
 import Scion.PersistentHoogle.Parser
 import Scion.PersistentHoogle.Util
-import Scion.PersistentBrowser.Util
 import System.Exit (ExitCode(..))
 import System.Process
 import Text.Parsec.Prim (runP)
@@ -39,19 +38,23 @@ query p q = do mpath <- liftIO $ findHoogleBinPath p
                                    _           -> do liftIO $ logToStdout err -- I like to see the error in the log
                                                      return []
 
-downloadData :: Maybe String -> IO Bool
+downloadData :: Maybe String -> IO HoogleStatus
 downloadData p = do mpath <- findHoogleBinPath p
                     case mpath of
-                      Nothing   -> return False
+                      Nothing   -> return Missing
                       Just path -> do logToStdout "Downloading hoogle data..."
                                       (ec, _, err) <- readProcessWithExitCode path ["data"] ""
                                       when (ec/= ExitSuccess) (putStrLn err)
-                                      return (ec == ExitSuccess)
+                                      return $ case ec of
+                                        ExitSuccess->OK
+                                        _-> Error
 
-checkDatabase :: Maybe String -> IO Bool
+checkDatabase :: Maybe String -> IO HoogleStatus
 checkDatabase p = do mpath <- findHoogleBinPath p
                      case mpath of
-                       Nothing   -> return False
-                       Just path -> do (exitCode, _, _) <- readProcessWithExitCode path ["fmap"] ""
-                                       return (exitCode == ExitSuccess)
+                       Nothing   -> return Missing
+                       Just path -> do (ec, _, _) <- readProcessWithExitCode path ["fmap"] ""
+                                       return $ case ec of
+                                        ExitSuccess->OK
+                                        _-> Error
 

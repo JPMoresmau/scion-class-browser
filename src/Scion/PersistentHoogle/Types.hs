@@ -12,3 +12,6 @@ data Result = RPackage     [DbPackage]
 
 data Query = Query String
 
+-- | status of hoogle operation
+data HoogleStatus = Missing | OK | Error
+        deriving (Show,Read,Eq,Ord,Enum,Bounded)
