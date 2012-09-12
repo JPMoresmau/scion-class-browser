@@ -9,8 +9,6 @@ import Database.Persist.Sqlite
 import Database.Persist.Store
 import Database.Persist.GenericSql.Raw (withStmt, execute)
 import Scion.PersistentBrowser.DbTypes
-import Scion.PersistentBrowser.Util (logToStdout)
-import Control.Monad.IO.Class (liftIO)
 import Data.Conduit
 import qualified Data.Conduit.List as CL
 import Data.List (isPrefixOf)
@@ -101,7 +99,7 @@ declAction _ = error "This should not happen"
 
 createIndexes :: SqlPersist IO()
 createIndexes=do
-        liftIO $ logToStdout "creating indexes"
+        -- liftIO $ logToStdout "creating indexes"
         let idxs = [ "create index if not exists module_pkgid_name on DbModule (packageId,name)"
                    , "create index if not exists decl_modid on DbDecl (moduleId)"
                    , "create index if not exists decl_name on DbDecl (name)"

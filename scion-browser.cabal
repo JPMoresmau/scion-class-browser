@@ -1,5 +1,5 @@
 name:           scion-browser
-version:        0.2.10
+version:        0.2.11
 cabal-version:  >= 1.8
 build-type:     Simple
 license:        BSD3

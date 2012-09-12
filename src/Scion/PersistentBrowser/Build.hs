@@ -9,7 +9,6 @@ module Scion.PersistentBrowser.Build
 ) where
 
 import Control.Concurrent.ParallelIO.Local
-import Control.Exception as E (catch, SomeException)
 import Control.Monad.IO.Class (liftIO)
 import Data.Either (rights)
 import Data.List ((\\), nub)
@@ -32,9 +31,7 @@ import Text.Parsec.Error (ParseError)
 import Text.ParserCombinators.Parsec.Error (newErrorMessage, Message(..))
 import Text.ParserCombinators.Parsec.Pos (newPos)
 import Text.ParserCombinators.ReadP
-import Network.Browser
-import Network.HTTP
-import Network.HTTP.Proxy
+import Control.Monad (when)
 
 baseDbUrl :: String
 baseDbUrl = "http://haskell.org/hoogle/base.txt"
@@ -116,13 +113,16 @@ updateDatabase' pkgInfo =
          installedList = nub $ removeSmallVersions $ map sourcePackageId pkgInfo
          toRemove      = dbList \\ installedList
          toAdd         = installedList \\ dbList
-     liftIO $ logToStdout $ "Removing " ++ show (map (\(PackageIdentifier (PackageName name) _) -> name) toRemove)
+     when (not $ null toRemove) (do
+        liftIO $ logToStdout $ "Removing " ++ show (map (\(PackageIdentifier (PackageName name) _) -> name) toRemove))
      mapM_ deletePackageByInfo toRemove
-     liftIO $ logToStdout $ "Adding " ++ show (map (\(PackageIdentifier (PackageName name) _) -> name) toAdd)
+     when (not $ null toAdd) (do
+        liftIO $ logToStdout $ "Adding " ++ show (map (\(PackageIdentifier (PackageName name) _) -> name) toAdd))
      let ghcVersion = getGhcInstalledVersion installedList
      (addedDb, errors) <- liftIO $ createCabalDatabase' ghcVersion toAdd True
      mapM_ savePackageToDb addedDb
-     liftIO $ logToStdout $ show errors
+     when (not $ null errors) (do
+        liftIO $ logToStdout $ show errors)
 
 fromDbToPackageIdentifier :: DbPackage -> PackageIdentifier
 fromDbToPackageIdentifier (DbPackage name version _) = PackageIdentifier (PackageName name)

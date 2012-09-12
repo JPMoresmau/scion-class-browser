@@ -44,7 +44,9 @@ downloadData p = do mpath <- findHoogleBinPath p
                       Nothing   -> return Missing
                       Just path -> do logToStdout "Downloading hoogle data..."
                                       (ec, _, err) <- readProcessWithExitCode path ["data"] ""
-                                      when (ec/= ExitSuccess) (putStrLn err)
+                                      when (ec/= ExitSuccess) (do
+                                        logToStdout path
+                                        logToStdout err)
                                       return $ case ec of
                                         ExitSuccess->OK
                                         _-> Error
@@ -53,8 +55,11 @@ checkDatabase :: Maybe String -> IO HoogleStatus
 checkDatabase p = do mpath <- findHoogleBinPath p
                      case mpath of
                        Nothing   -> return Missing
-                       Just path -> do (ec, _, _) <- readProcessWithExitCode path ["fmap"] ""
+                       Just path -> do (ec, _, err) <- readProcessWithExitCode path ["fmap"] ""
+                                       when (ec/= ExitSuccess) (do
+                                         logToStdout path
+                                         logToStdout err)
                                        return $ case ec of
-                                        ExitSuccess->OK
-                                        _-> Error
+                                         ExitSuccess->OK
+                                         _-> Error
 
