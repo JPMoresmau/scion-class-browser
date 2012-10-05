@@ -3,7 +3,7 @@
 module Main where
 
 import qualified Codec.Compression.Zlib as Zlib
-import Control.Monad.State
+import Control.Monad.State.Strict
 import Data.Aeson
 import qualified Data.Aeson.Types as T
 import qualified Data.Attoparsec.ByteString as Atto

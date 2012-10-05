@@ -4,7 +4,7 @@ module Server.PersistentCommands where
 
 import Control.Applicative
 import Control.Monad
-import Control.Monad.State
+import Control.Monad.State.Strict
 import Data.Aeson
 import qualified Data.HashMap.Lazy as M
 import Data.Maybe (isJust, fromJust)

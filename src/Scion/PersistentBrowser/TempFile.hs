@@ -3,7 +3,7 @@
 
 {-# OPTIONS -cpp #-}
 -- OPTIONS required for ghc-6.4.x compat, and must appear first
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP, ScopedTypeVariables #-}
 {-# OPTIONS_GHC -cpp #-}
 {-# OPTIONS_NHC98 -cpp #-}
 {-# OPTIONS_JHC -fcpp #-}
@@ -24,13 +24,15 @@ import System.IO              (openFile, openBinaryFile,
                                Handle, IOMode(ReadWriteMode))
 import System.Directory       (doesFileExist)
 import System.FilePath        ((<.>), splitExtension)
-import System.IO.Error        (try, isAlreadyExistsError)
+import System.IO.Error        (isAlreadyExistsError)
 #else
 import System.IO              (Handle, openTempFile, openBinaryTempFile)
 import Data.Bits              ((.|.))
 import System.Posix.Internals (c_open, c_close, o_CREAT, o_EXCL, o_RDWR,
                                o_BINARY, o_NONBLOCK, o_NOCTTY)
-import System.IO.Error        (try, isAlreadyExistsError)
+                               
+import qualified Control.Exception as Exc
+import qualified GHC.IO.Exception as Exc
 #if __GLASGOW_HASKELL__ >= 611
 import System.Posix.Internals (withFilePath)
 #else
@@ -206,10 +208,10 @@ createTempDirectory dir template = do
   where
     findTempName x = do
       let dirpath = dir </> template ++ show x
-      r <- try $ mkPrivateDir dirpath
+      r <- Exc.try $ mkPrivateDir dirpath
       case r of
         Right _ -> return dirpath
-        Left  e | isAlreadyExistsError e -> findTempName (x+1)
+        Left  (e::Exc.IOException) | Exc.AlreadyExists == (Exc.ioe_type e) -> findTempName (x+1)
                 | otherwise              -> ioError e
 
 mkPrivateDir :: String -> IO ()

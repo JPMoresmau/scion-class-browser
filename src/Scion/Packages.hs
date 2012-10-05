@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP, ScopedTypeVariables #-}
 -- |
 -- Module      : Scion.Packages
 -- Author      : Thiago Arrais
@@ -25,7 +25,7 @@ import System.Directory
 import System.Environment (getEnv)
 import System.FilePath
 import System.IO
-import System.IO.Error
+import qualified Control.Exception as Exc
 
 import GHC.Paths
 
@@ -86,10 +86,10 @@ getPkgInfos =
         Just pkgs -> return $ pkgs
 
     -- Get the user package configuration database
-    e_appdir <- try $ getAppUserDataDirectory "ghc"
+    e_appdir <- Exc.try $ getAppUserDataDirectory "ghc"
     user_conf <- do
          case e_appdir of
-           Left _       -> return []
+           Left (_::Exc.IOException)       -> return []
            Right appdir -> do
              let subdir = currentArch ++ '-':currentOS ++ '-':ghcVersion
                  dir = appdir </> subdir
@@ -99,10 +99,10 @@ getPkgInfos =
                Just pkgs -> return pkgs
 
     -- Process GHC_PACKAGE_PATH, if present:
-    e_pkg_path <- try (getEnv "GHC_PACKAGE_PATH")
+    e_pkg_path <- Exc.try $ getEnv "GHC_PACKAGE_PATH"
     env_stack <- do 
       case e_pkg_path of
-        Left _     -> return []
+        Left (_::Exc.IOException)     -> return []
         Right path -> do
           pkgs <- mapM readContents [(PkgDirectory pkg) | pkg <- splitSearchPath path]
           return $ concat pkgs
