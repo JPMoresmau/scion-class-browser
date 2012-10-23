@@ -31,7 +31,14 @@ import GHC.Paths
 
 import qualified Control.Exception as Exception
 
--- This was borrowed from the ghc-pkg source:
+#if __GLASGOW_HASKELL__ < 702
+catchIOError :: IO a -> (IOError -> IO a) -> IO a
+catchIOError = catch
+#else
+import System.IO.Error (catchIOError)
+#endif
+
+-- this was borrowed from the ghc-pkg source:
 type InstalledPackageInfoString = InstalledPackageInfo_ String
 
 -- | Types of cabal package databases
@@ -135,7 +142,7 @@ readContents pkgdb =
 #if __GLASGOW_HASKELL__ >= 612
       -- fix the encoding to UTF-8
       hSetEncoding h utf8
-      catch (hGetContents h) (\_ -> do
+      catchIOError (hGetContents h) (\_ -> do
          -- logInfo $ ioeGetErrorString  err
          hClose h
          h' <- openFile file ReadMode
@@ -169,7 +176,7 @@ readContents pkgdb =
     pkgInfoReader ::  FilePath
                       -> IO [InstalledPackageInfo]
     pkgInfoReader f = 
-      catch (
+      catchIOError (
          do
               pkgStr <- readUTF8File f
               let pkgInfo = parseInstalledPackageInfo pkgStr
