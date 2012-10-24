@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Scion.PersistentBrowser.Parser
@@ -24,6 +25,13 @@ import Text.Parsec.Prim (runP)
 import Text.ParserCombinators.Parsec
 import Text.ParserCombinators.Parsec.Pos (newPos)
 
+#if __GLASGOW_HASKELL__ < 702
+catchIOError :: IO a -> (IOError -> IO a) -> IO a
+catchIOError = catch
+#else
+import System.IO.Error (catchIOError)
+#endif
+
 -- | Parses the contents of a string containing the 
 --   Hoogle file contents.
 parseHoogleString :: String -> BS.ByteString -> Either ParseError (Documented Package)
@@ -37,7 +45,7 @@ parseHoogleFile fname = (withFile fname ReadMode $
                            \hnd -> do c <- BS.hGetContents hnd
                                       return $ parseHoogleString fname c
                         )
-                        `catch`
+                        `catchIOError`
                         (\_ -> return $ Left (newErrorMessage (Message "error reading file")
                                                               (newPos fname 0 0)))
 
