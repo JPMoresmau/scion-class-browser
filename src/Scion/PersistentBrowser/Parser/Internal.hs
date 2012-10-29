@@ -261,7 +261,10 @@ kindL = (do char '('
         <|>
         (do n <- varid
             return $ KindVar NoDoc n)
-
+        <|>
+        (do n <- conid
+            return $ KindVar NoDoc n)
+            
 instance_ :: Doc -> BSParser (Documented Decl)
 instance_ doc = do string "instance"
                    -- HACK: in some Hoogle files things like [overlap ok] appear
@@ -314,10 +317,12 @@ dataOrNewType keyword dOrN doc = do string keyword
                                     rests <- many1 possibleKind
                                     let rest = concat $ map fst rests
                                         k = snd (last rests)
-                                    {- rest <- many $ allButDoubleColon
+                                    {- rest <- many $ allButDoubleColon                                     
                                     k <- optionMaybe (do string "::"
-                                                         spaces0
-                                                         kind) -}
+                                       spaces0
+                                       kind)
+                                     -}
+
                                     ty <- parseType rest
                                     let (ctx, hd) = typeToContextAndHead ty
                                     consAndFns <- many $ try (spacesOrEol0 >> documented constructorOrFunction)

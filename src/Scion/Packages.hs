@@ -13,6 +13,8 @@
 -- Cabal-related functionality.
 module Scion.Packages ( getPkgInfos ) where
 
+import Scion.PersistentBrowser.Util
+
 import Prelude hiding (Maybe)
 import qualified Config
 import qualified System.Info
@@ -182,8 +184,8 @@ readContents pkgdb =
               let pkgInfo = parseInstalledPackageInfo pkgStr
               case pkgInfo of
                 ParseOk _ info -> return [info]
-                ParseFailed _  -> do
-                        -- logInfo (show err)
+                ParseFailed err  -> do
+                        logToStdout (show err)
                         return [emptyInstalledPackageInfo]
         ) (\_->return [emptyInstalledPackageInfo])
         
