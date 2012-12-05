@@ -15,27 +15,27 @@ import Data.List (isPrefixOf)
 import Data.Char (toUpper)
 
 -- |Get the identifiers of all packages in the database.
-allPackageIds :: Maybe DbPackageIdentifier -> SqlPersist IO [DbPackageIdentifier]
+allPackageIds :: Maybe DbPackageIdentifier -> SQL [DbPackageIdentifier]
 allPackageIds pkgs = do packages <- allPackages pkgs
                         return $ map dbPackageToIdentifier packages
 
 -- |Get information of all packages in the database.
-allPackages :: Maybe DbPackageIdentifier -> SqlPersist IO [DbPackage]
+allPackages :: Maybe DbPackageIdentifier -> SQL [DbPackage]
 allPackages _ = do packages <- selectList ([] :: [Filter DbPackage]) []
                    return $ map entityVal packages
 
 -- |Get information of all versions of the package with that name.
-packagesByName :: String -> Maybe DbPackageIdentifier -> SqlPersist IO [DbPackage]
+packagesByName :: String -> Maybe DbPackageIdentifier -> SQL [DbPackage]
 packagesByName name _ = do packages <- selectList [ DbPackageName ==. name ] []
                            return $ map entityVal packages
 
 -- |Get information about a package in the database.
-getPackage :: DbPackageIdentifier -> SqlPersist IO (Maybe (DbPackage))
+getPackage :: DbPackageIdentifier -> SQL (Maybe (DbPackage))
 getPackage (DbPackageIdentifier name version) = do package <- selectFirst [ DbPackageName ==. name, DbPackageVersion ==. version ] []
                                                    return $ fmap entityVal package
 
 -- |Get information about all modules with that name.
-modulesByName :: String -> Maybe DbPackageIdentifier -> SqlPersist IO [DbModule]
+modulesByName :: String -> Maybe DbPackageIdentifier -> SQL [DbModule]
 modulesByName name Nothing = do mods <- selectList [ DbModuleName ==. name ] []
                                 return $ map entityVal mods
 modulesByName name (Just (DbPackageIdentifier pkgName pkgVersion)) =
@@ -48,7 +48,7 @@ modulesByName name (Just (DbPackageIdentifier pkgName pkgVersion)) =
 
 -- |Get all the modules hierarchically inside the specified one.
 --  For getting the entire list of modules modules, use "" as initial name.
-getSubmodules :: String -> Maybe DbPackageIdentifier -> SqlPersist IO [DbModule]
+getSubmodules :: String -> Maybe DbPackageIdentifier -> SQL [DbModule]
 getSubmodules "" Nothing =
   do let sql = "SELECT name, doc, packageId FROM DbModule"
      queryDb sql [] moduleAction
@@ -74,7 +74,7 @@ moduleAction [PersistText name, doc, pkgId@(PersistInt64 _)] = DbModule (T.unpac
 moduleAction _ = error "This should not happen"
 
 -- |Get information about all declaration with that name.
-declsByName :: String -> Maybe DbPackageIdentifier -> SqlPersist IO [DbDecl]
+declsByName :: String -> Maybe DbPackageIdentifier -> SQL [DbDecl]
 declsByName name Nothing =
   do let sql = "SELECT DbDecl.declType, DbDecl.name, DbDecl.doc, DbDecl.kind, DbDecl.signature, DbDecl.equals, DbDecl.moduleId"
                ++ " FROM DbDecl, DbModule"
@@ -97,7 +97,7 @@ declAction [PersistText declType, PersistText name , doc, kind, signature, equal
 declAction _ = error "This should not happen"
 
 
-createIndexes :: SqlPersist IO()
+createIndexes :: SQL ()
 createIndexes=do
         -- liftIO $ logToStdout "creating indexes"
         let idxs = [ "create index if not exists module_pkgid_name on DbModule (packageId,name)"
@@ -114,7 +114,7 @@ createIndexes=do
 
 -- |Gets the declarations inside some module,
 --  along with information about which package it lives.
-getDeclsInModule :: String -> Maybe DbPackageIdentifier -> SqlPersist IO [(DbPackageIdentifier, DbCompleteDecl)]
+getDeclsInModule :: String -> Maybe DbPackageIdentifier -> SQL [(DbPackageIdentifier, DbCompleteDecl)]
 getDeclsInModule modName pkgId =
   do let pkg = case pkgId of
                  Nothing -> ""
@@ -146,7 +146,7 @@ getDeclsInModule modName pkgId =
 
 -- | list declarations matching the given prefix, useful for content assist
 -- the prefix either matches the declaration itself or any constructor
-getDeclsFromPrefix :: String -> Maybe DbPackageIdentifier -> SqlPersist IO [(DbPackageIdentifier, DbModule, DbCompleteDecl)]
+getDeclsFromPrefix :: String -> Maybe DbPackageIdentifier -> SQL [(DbPackageIdentifier, DbModule, DbCompleteDecl)]
 getDeclsFromPrefix prefix pkgId =
   do let pkg = case pkgId of
                  Nothing -> ""
@@ -184,7 +184,7 @@ getDeclsFromPrefix prefix pkgId =
                 -- we do case insensitive match here to be consistent with LIKE above
                 return $ filter (\(DbConstructor name _ _)->isPrefixOf (map toUpper prefix) (map toUpper name)) $ map entityVal consts'
 
-getAllDeclInfo :: (DbDeclId, DbDecl) -> SqlPersist IO DbCompleteDecl
+getAllDeclInfo :: (DbDeclId, DbDecl) -> SQL DbCompleteDecl
 getAllDeclInfo (declId, decl) =
   do ctxs' <- selectList [ DbContextDeclId ==. declId] []
      let ctxs = map entityVal ctxs'
@@ -197,12 +197,12 @@ getAllDeclInfo (declId, decl) =
      return $ DbCompleteDecl decl ctxs tyvars fundeps consts
 
 -- |Get information about all constructors with that name.
-constructorsByName :: String -> SqlPersist IO [DbConstructor]
+constructorsByName :: String -> SQL [DbConstructor]
 constructorsByName name = do consts <- selectList [ DbConstructorName ==. name ] []
                              return $ map entityVal consts
 
 -- | Gets a list of modules where a declaration may live
-getModulesWhereDeclarationIs :: String -> SqlPersist IO [(DbModule,String)]
+getModulesWhereDeclarationIs :: String -> SQL [(DbModule,String)]
 getModulesWhereDeclarationIs declName =
   do let sqlDecl = "SELECT DbModule.name, DbModule.doc, DbModule.packageId,''"
                    ++ " FROM DbDecl, DbModule"
@@ -219,7 +219,7 @@ getModulesWhereDeclarationIs declName =
         action _ = error "This should not happen"
 
 -- |Executes a query.
-queryDb :: String -> [String] -> ([PersistValue] -> a) -> SqlPersist IO [a]
+queryDb :: String -> [String] -> ([PersistValue] -> a) -> SQL [a]
 queryDb sql params action = runResourceT (withStmt (T.pack sql) (map toPersistValue params) $= CL.map action $$ CL.consume)
 
 -- |Gets information from a text value.
@@ -230,31 +230,32 @@ fromDbText _                   = error "This should not happen"
 
 -- |Things that reside on a package.
 class HasDbPackage d where
-  getDbPackage :: d -> SqlPersist IO DbPackage
+  getDbPackage :: d -> SQL DbPackage
 
 instance HasDbPackage DbPackage where
   getDbPackage = return
 
 instance HasDbPackage DbModule where
-  getDbPackage (DbModule _ _ pkgId) = do Just pkg <- get pkgId
+  getDbPackage (DbModule _ _ pkgId) = do pkg <- getJust pkgId
                                          return pkg
 
 instance HasDbPackage DbDecl where
-  getDbPackage (DbDecl _ _ _ _ _ _ modId) = do Just md <- get modId
+  getDbPackage (DbDecl _ _ _ _ _ _ modId) = do md <- getJust modId
                                                getDbPackage md
 
 -- |Things that reside on a module.
 class HasDbModule d where
-  getDbModule :: d -> SqlPersist IO DbModule
+  getDbModule :: d -> SQL DbModule
 
 instance HasDbModule DbModule where
   getDbModule = return
 
 instance HasDbModule DbDecl where
-  getDbModule (DbDecl _ _ _ _ _ _ modId) = do Just md <- get modId
+  getDbModule (DbDecl _ _ _ _ _ _ modId) = do md <- getJust modId
                                               return md
 
 instance HasDbModule DbConstructor where
-  getDbModule (DbConstructor _ _ declId) = do Just dc <- get declId
+  getDbModule (DbConstructor _ _ declId) = do 
+                                              dc <-  getJust declId
                                               getDbModule dc
 

@@ -32,6 +32,7 @@ import Text.ParserCombinators.Parsec.Error (newErrorMessage, Message(..))
 import Text.ParserCombinators.Parsec.Pos (newPos)
 import Text.ParserCombinators.ReadP
 import Control.Monad (when)
+import Data.Conduit (runResourceT)
 
 baseDbUrl :: String
 baseDbUrl = "http://haskell.org/hoogle/base.txt"
@@ -65,7 +66,7 @@ saveHackageDatabase file = withTemporaryDirectory (saveHackageDatabaseWithTmp fi
 
 saveHackageDatabaseWithTmp :: FilePath -> FilePath -> IO ()
 saveHackageDatabaseWithTmp file tmp = do (db, _) <- createHackageDatabase tmp
-                                         withSqliteConn (T.pack file) (runSqlConn (mapM_ savePackageToDb db))
+                                         runResourceT $ withSqliteConn (T.pack file) (runSqlConn (mapM_ savePackageToDb db))
                                          --mapM_ (\pkg -> withSqliteConn (T.pack file) (runSqlConn (savePackageToDb pkg))) db
 
 -- | Downloads the information for the entire Hackage database
@@ -104,9 +105,9 @@ createHackageDatabase tmp =
 
 -- | Updates a database with changes in the installed package base.
 updateDatabase :: FilePath -> [InstalledPackageInfo] -> IO ()
-updateDatabase file pkgInfo = withSqliteConn (T.pack file) $ runSqlConn $ updateDatabase' pkgInfo
+updateDatabase file pkgInfo = runResourceT $ withSqliteConn (T.pack file) $ runSqlConn $ updateDatabase' pkgInfo
 
-updateDatabase' :: [InstalledPackageInfo] -> SqlPersist IO ()
+updateDatabase' :: [InstalledPackageInfo] -> SQL ()
 updateDatabase' pkgInfo = 
   do dbPersistent <- selectList ([] :: [Filter DbPackage]) []
      let dbList        = map (fromDbToPackageIdentifier . entityVal) dbPersistent

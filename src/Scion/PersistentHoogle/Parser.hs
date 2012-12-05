@@ -24,7 +24,7 @@ data HalfResult = HalfPackage  String
                 | HalfGadtDecl String (Documented GadtDecl)
                 | HalfKeyword  String
 
-hoogleElements :: BSParser (SqlPersist IO [Result])
+hoogleElements :: BSParser (SQL [Result])
 hoogleElements = do elts <- hoogleElements'
                     let results = catMaybesM $ map convertHalfToResult elts
                     return results
@@ -92,7 +92,7 @@ hoogleKeyword = do string "keyword"
                    spaces0
                    return name
 
-convertHalfToResult :: HalfResult -> SqlPersist IO (Maybe Result)
+convertHalfToResult :: HalfResult -> SQL (Maybe Result)
 convertHalfToResult (HalfKeyword kw) =
   return $ Just (RKeyword kw)
 convertHalfToResult (HalfPackage  pname) = 

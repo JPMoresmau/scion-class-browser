@@ -6,6 +6,9 @@ import Database.Persist
 -- import Database.Persist.Base
 import Database.Persist.Sqlite
 import Database.Persist.TH
+import Data.Conduit (ResourceT)
+
+type SQL a= SqlPersist (ResourceT IO) a
 
 data DbDeclType = DbData | DbNewType | DbClass | DbInstance | DbSignature | DbType
     deriving (Show, Read, Eq)

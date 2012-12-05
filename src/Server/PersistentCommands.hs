@@ -12,11 +12,13 @@ import qualified Data.Text as T
 import Database.Persist.Sqlite hiding (get)
 import Scion.PersistentBrowser
 import Scion.PersistentBrowser.Build
+import Scion.PersistentBrowser.DbTypes
 import Scion.PersistentBrowser.Query
 import Scion.PersistentBrowser.Util (logToStdout)
 import qualified Scion.PersistentHoogle as H
 import Scion.Packages
 import System.Directory
+import Data.Conduit (runResourceT)
 
 data Command = LoadLocalDatabase FilePath Bool
              | LoadHackageDatabase FilePath Bool
@@ -58,7 +60,7 @@ filterPackage :: CurrentDatabase -> Maybe DbPackageIdentifier
 filterPackage (APackage pkgId)=Just pkgId
 filterPackage _ = Nothing
 
-runWithState :: BrowserState -> CurrentDatabase -> (Maybe DbPackageIdentifier -> SqlPersist IO [a]) -> IO [a]
+runWithState :: BrowserState -> CurrentDatabase -> (Maybe DbPackageIdentifier -> SQL [a]) -> IO [a]
 runWithState (BrowserState lDb hDb _) cdb action =
   do 
      let filterPkg=filterPackage cdb
@@ -66,13 +68,13 @@ runWithState (BrowserState lDb hDb _) cdb action =
      hackageThings <- runWithState' (useHackage cdb) hDb (action filterPkg)
      return $ localThings ++ hackageThings
 
-runWithState' :: Bool -> Maybe FilePath -> SqlPersist IO [a] -> IO [a]
+runWithState' :: Bool -> Maybe FilePath -> SQL[a] -> IO [ a]
 runWithState' use mpath action = if use && isJust mpath
                                     then do let path = fromJust mpath
-                                            withSqliteConn (T.pack path) $ runSqlConn action
+                                            runResourceT $ withSqliteConn (T.pack path) $ runSqlConn action
                                     else return []
 
-runDb :: CurrentDatabase -> (Maybe DbPackageIdentifier -> SqlPersist IO [a]) -> BrowserM [a]
+runDb :: CurrentDatabase -> (Maybe DbPackageIdentifier -> SQL [a]) -> BrowserM [a]
 runDb cdb action = 
    do 
       st <- get
@@ -85,7 +87,7 @@ executeCommand (LoadLocalDatabase path rebuild) =
   do fileExists <- lift $ doesFileExist path
      let fileExists' = fileExists `seq` fileExists
      when rebuild $
-          lift $ do withSqliteConn (T.pack path) $ runSqlConn $ do
+          lift $ do runResourceT $ withSqliteConn (T.pack path) $ runSqlConn $ do
                          runMigration migrateAll
                          createIndexes
                     pkgInfos' <- getPkgInfos
@@ -102,7 +104,7 @@ executeCommand (LoadHackageDatabase path rebuild) =
      when (not fileExists' || rebuild) $
           lift $ do when fileExists' (removeFile path)
                     logToStdout "Rebuilding Hackage database"
-                    withSqliteConn (T.pack path) $ runSqlConn $ do
+                    runResourceT $ withSqliteConn (T.pack path) $ runSqlConn $ do
                         runMigration migrateAll
                         createIndexes
                     saveHackageDatabase path

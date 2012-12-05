@@ -10,6 +10,7 @@ import Control.Monad.IO.Class (liftIO)
 import Database.Persist.Sqlite
 import Scion.PersistentBrowser ()
 import Scion.PersistentBrowser.Util
+import Scion.PersistentBrowser.DbTypes
 
 import Scion.PersistentHoogle.Types
 import Scion.PersistentHoogle.Instances.Json ()
@@ -19,7 +20,7 @@ import System.Exit (ExitCode(..))
 import System.Process
 import Text.Parsec.Prim (runP)
 
-query :: Maybe String -> String -> SqlPersist IO [Result]
+query :: Maybe String -> String -> SQL [Result]
 query p q = do mpath <- liftIO $ findHoogleBinPath p
                case mpath of
                  Nothing   -> return []
