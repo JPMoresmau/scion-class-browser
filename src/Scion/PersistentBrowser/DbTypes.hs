@@ -7,8 +7,9 @@ import Database.Persist
 import Database.Persist.Sqlite
 import Database.Persist.TH
 import Data.Conduit (ResourceT)
+import Control.Monad.Logger (LoggingT(..))
 
-type SQL a= SqlPersist (ResourceT IO) a
+type SQL a= SqlPersist (LoggingT (ResourceT IO)) a
 
 data DbDeclType = DbData | DbNewType | DbClass | DbInstance | DbSignature | DbType
     deriving (Show, Read, Eq)

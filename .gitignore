@@ -3,3 +3,4 @@
 /.dist-buildwrapper
 /.project
 /.hsproject
+/cabal-dev

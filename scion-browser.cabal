@@ -41,7 +41,8 @@ library
     transformers,
     unordered-containers >= 0.1.3,
     zlib,
-    ghc-paths == 0.1.*
+    ghc-paths == 0.1.*,
+    monad-logger >= 0.2.2
   
   if !os(mingw32)
     build-depends:
@@ -120,7 +121,8 @@ executable scion-browser
     transformers,
     unordered-containers >= 0.1.3,
     zlib,
-    ghc-paths == 0.1.*
+    ghc-paths == 0.1.*,
+    monad-logger >= 0.2.2
   
   if !os(mingw32)
     build-depends:
