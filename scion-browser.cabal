@@ -1,5 +1,5 @@
 name:           scion-browser
-version:        0.2.14
+version:        0.2.15
 cabal-version:  >= 1.8
 build-type:     Simple
 license:        BSD3
@@ -34,15 +34,15 @@ library
     aeson >= 0.4,
     parallel-io >= 0.3,
     utf8-string,
-    persistent >= 0.7,
+    persistent >= 1.1.5,
     persistent-sqlite >= 0.7,
     persistent-template >= 0.7,
-    conduit,
+    conduit>=0.5 && <1.0,
     transformers,
     unordered-containers >= 0.1.3,
     zlib,
     ghc-paths == 0.1.*,
-    monad-logger >= 0.2.2
+    monad-logger >= 0.2.4 && <0.3
   
   if !os(mingw32)
     build-depends:
@@ -114,15 +114,15 @@ executable scion-browser
     aeson >= 0.4,
     parallel-io >= 0.3,
     utf8-string,
-    persistent >= 0.7,
+    persistent >= 1.1.5,
     persistent-sqlite >= 0.7,
     persistent-template >= 0.7,
-    conduit,
+    conduit>=0.5 && <1.0,
     transformers,
     unordered-containers >= 0.1.3,
     zlib,
     ghc-paths == 0.1.*,
-    monad-logger >= 0.2.2
+    monad-logger >= 0.2.4 && <0.3
   
   if !os(mingw32)
     build-depends:

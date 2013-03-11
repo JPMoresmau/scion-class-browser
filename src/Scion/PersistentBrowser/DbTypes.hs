@@ -1,4 +1,4 @@
-{-# LANGUAGE QuasiQuotes, TemplateHaskell, TypeFamilies, OverloadedStrings, GADTs, FlexibleContexts, EmptyDataDecls #-}
+{-# LANGUAGE QuasiQuotes, TemplateHaskell, TypeFamilies, OverloadedStrings, GADTs, FlexibleContexts, EmptyDataDecls, FlexibleInstances #-}
 
 module Scion.PersistentBrowser.DbTypes where
 
@@ -7,9 +7,9 @@ import Database.Persist
 import Database.Persist.Sqlite
 import Database.Persist.TH
 import Data.Conduit (ResourceT)
-import Control.Monad.Logger (LoggingT(..))
+import Control.Monad.Logger (NoLoggingT(..)) -- LoggingT(..),
+type SQL a= SqlPersist (NoLoggingT (ResourceT (IO))) a
 
-type SQL a= SqlPersist (LoggingT (ResourceT IO)) a
 
 data DbDeclType = DbData | DbNewType | DbClass | DbInstance | DbSignature | DbType
     deriving (Show, Read, Eq)

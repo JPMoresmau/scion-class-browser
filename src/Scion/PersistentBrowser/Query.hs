@@ -5,7 +5,7 @@ module Scion.PersistentBrowser.Query where
 
 import qualified Data.Text as T
 import Database.Persist
-import Database.Persist.Sqlite
+--import Database.Persist.Sqlite
 import Database.Persist.Store
 import Database.Persist.GenericSql.Raw (withStmt, execute)
 import Scion.PersistentBrowser.DbTypes
@@ -155,9 +155,10 @@ getDeclsFromPrefix prefix pkgId =
                ++ "DbModule.name, DbPackage.name, DbPackage.version"
                ++ " FROM DbDecl, DbModule, DbPackage"
                ++ " WHERE DbDecl.moduleId = DbModule.id AND DbModule.packageId = DbPackage.id"
-               ++ " AND (DbDecl.name LIKE '"
+               
+               ++ (if null prefix then "" else (" AND (DbDecl.name LIKE '"
                ++ prefix ++ "%' or DbDecl.id in (select DbConstructor.declId from DbConstructor where DbConstructor.name LIKE '"
-               ++ prefix ++ "%'))"
+               ++ prefix ++ "%'))"))
                ++ pkg
      let args = case pkgId of
                   Nothing -> []
@@ -220,7 +221,8 @@ getModulesWhereDeclarationIs declName =
 
 -- |Executes a query.
 queryDb :: String -> [String] -> ([PersistValue] -> a) -> SQL [a]
-queryDb sql params action = runResourceT (withStmt (T.pack sql) (map toPersistValue params) $= CL.map action $$ CL.consume)
+queryDb sql params action = (withStmt (T.pack sql) (map toPersistValue params) $= CL.map action $$ CL.consume)
+
 
 -- |Gets information from a text value.
 fromDbText :: PersistValue -> Maybe String

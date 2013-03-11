@@ -33,7 +33,7 @@ import Text.ParserCombinators.Parsec.Pos (newPos)
 import Text.ParserCombinators.ReadP
 import Control.Monad (when)
 import Data.Conduit (runResourceT)
-import Control.Monad.Logger (runStderrLoggingT)
+import Control.Monad.Logger (runNoLoggingT) --runStderrLoggingT,
 
 baseDbUrl :: String
 baseDbUrl = "http://haskell.org/hoogle/base.txt"
@@ -67,7 +67,7 @@ saveHackageDatabase file = withTemporaryDirectory (saveHackageDatabaseWithTmp fi
 
 saveHackageDatabaseWithTmp :: FilePath -> FilePath -> IO ()
 saveHackageDatabaseWithTmp file tmp = do (db, _) <- createHackageDatabase tmp
-                                         runResourceT $ runStderrLoggingT $ withSqliteConn (T.pack file) (runSqlConn (mapM_ savePackageToDb db))
+                                         runResourceT $ runNoLoggingT $ withSqliteConn (T.pack file) (runSqlConn (mapM_ savePackageToDb db))
                                          --mapM_ (\pkg -> withSqliteConn (T.pack file) (runSqlConn (savePackageToDb pkg))) db
 
 -- | Downloads the information for the entire Hackage database
@@ -106,7 +106,8 @@ createHackageDatabase tmp =
 
 -- | Updates a database with changes in the installed package base.
 updateDatabase :: FilePath -> [InstalledPackageInfo] -> IO ()
-updateDatabase file pkgInfo = runResourceT $ runStderrLoggingT $ withSqliteConn (T.pack file) $ runSqlConn $ updateDatabase' pkgInfo
+updateDatabase file pkgInfo = runResourceT $ runNoLoggingT $ withSqliteConn (T.pack file) $ runSqlConn $ updateDatabase' pkgInfo
+-- runStderrLoggingT $
 
 updateDatabase' :: [InstalledPackageInfo] -> SQL ()
 updateDatabase' pkgInfo = 

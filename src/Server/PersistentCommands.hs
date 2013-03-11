@@ -12,14 +12,14 @@ import qualified Data.Text as T
 import Database.Persist.Sqlite hiding (get)
 import Scion.PersistentBrowser
 import Scion.PersistentBrowser.Build
-import Scion.PersistentBrowser.DbTypes
+--import Scion.PersistentBrowser.DbTypes
 import Scion.PersistentBrowser.Query
 import Scion.PersistentBrowser.Util (logToStdout)
 import qualified Scion.PersistentHoogle as H
 import Scion.Packages
 import System.Directory
 import Data.Conduit (runResourceT)
-import Control.Monad.Logger (runStderrLoggingT)
+import Control.Monad.Logger (runNoLoggingT) --runStderrLoggingT, 
 
 data Command = LoadLocalDatabase FilePath Bool
              | LoadHackageDatabase FilePath Bool
@@ -72,7 +72,7 @@ runWithState (BrowserState lDb hDb _) cdb action =
 runWithState' :: Bool -> Maybe FilePath -> SQL[a] -> IO [ a]
 runWithState' use mpath action = if use && isJust mpath
                                     then do let path = fromJust mpath
-                                            runResourceT $ runStderrLoggingT $ withSqliteConn (T.pack path) $ runSqlConn action
+                                            runResourceT $ runNoLoggingT $ withSqliteConn (T.pack path) $ runSqlConn action
                                     else return []
 
 runDb :: CurrentDatabase -> (Maybe DbPackageIdentifier -> SQL [a]) -> BrowserM [a]
@@ -88,7 +88,7 @@ executeCommand (LoadLocalDatabase path rebuild) =
   do fileExists <- lift $ doesFileExist path
      let fileExists' = fileExists `seq` fileExists
      when rebuild $
-          lift $ do runResourceT $ runStderrLoggingT $ withSqliteConn (T.pack path) $ runSqlConn $ do
+          lift $ do runResourceT $ runNoLoggingT $ withSqliteConn (T.pack path) $ runSqlConn $ do
                          runMigration migrateAll
                          createIndexes
                     pkgInfos' <- getPkgInfos
@@ -105,7 +105,7 @@ executeCommand (LoadHackageDatabase path rebuild) =
      when (not fileExists' || rebuild) $
           lift $ do when fileExists' (removeFile path)
                     logToStdout "Rebuilding Hackage database"
-                    runResourceT $ runStderrLoggingT $ withSqliteConn (T.pack path) $ runSqlConn $ do
+                    runResourceT $ runNoLoggingT $ withSqliteConn (T.pack path) $ runSqlConn $ do
                         runMigration migrateAll
                         createIndexes
                     saveHackageDatabase path
