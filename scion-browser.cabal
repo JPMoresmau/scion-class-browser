@@ -34,7 +34,7 @@ library
     aeson >= 0.4,
     parallel-io >= 0.3,
     utf8-string,
-    persistent >= 1.1.5,
+    persistent >= 1.1.5 && < 1.2,
     persistent-sqlite >= 0.7,
     persistent-template >= 0.7,
     conduit>=1.0,
