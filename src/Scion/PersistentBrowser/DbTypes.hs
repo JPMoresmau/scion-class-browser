@@ -2,20 +2,16 @@
 
 module Scion.PersistentBrowser.DbTypes where
 
-import Database.Persist
--- import Database.Persist.Base
+import Scion.PersistentBrowser.Types
+
 import Database.Persist.Sqlite
 import Database.Persist.TH
 import Data.Conduit (ResourceT)
 import Control.Monad.Logger (NoLoggingT(..)) -- LoggingT(..),
-type SQL a= SqlPersist (NoLoggingT (ResourceT (IO))) a
 
+type SQL a= SqlPersistT (NoLoggingT (ResourceT IO)) a
 
-data DbDeclType = DbData | DbNewType | DbClass | DbInstance | DbSignature | DbType
-    deriving (Show, Read, Eq)
-derivePersistField "DbDeclType"
-
-share [mkPersist sqlSettings, mkMigrate "migrateAll"] [persist|
+share [mkPersist sqlSettings, mkMigrate "migrateAll"] [persistLowerCase|
 DbPackage
     name      String
     version   String

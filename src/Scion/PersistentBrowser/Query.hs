@@ -5,9 +5,7 @@ module Scion.PersistentBrowser.Query where
 
 import qualified Data.Text as T
 import Database.Persist
---import Database.Persist.Sqlite
-import Database.Persist.Store
-import Database.Persist.GenericSql.Raw (withStmt, execute)
+import Database.Persist.Sql
 import Scion.PersistentBrowser.DbTypes
 import Data.Conduit
 import qualified Data.Conduit.List as CL
@@ -30,7 +28,7 @@ packagesByName name _ = do packages <- selectList [ DbPackageName ==. name ] []
                            return $ map entityVal packages
 
 -- |Get information about a package in the database.
-getPackage :: DbPackageIdentifier -> SQL (Maybe (DbPackage))
+getPackage :: DbPackageIdentifier -> SQL (Maybe DbPackage)
 getPackage (DbPackageIdentifier name version) = do package <- selectFirst [ DbPackageName ==. name, DbPackageVersion ==. version ] []
                                                    return $ fmap entityVal package
 
@@ -109,8 +107,8 @@ createIndexes=do
                    , "create index if not exists fundep_declid on DbFunDep (declId)"
                    , "create index if not exists context_declid on DbContext (declId)"
                    ]
-        mapM_ (\x -> execute x []) idxs
-        execute "analyze" []
+        mapM_ (\x -> rawExecute x []) idxs
+        rawExecute "analyze" []
 
 -- |Gets the declarations inside some module,
 --  along with information about which package it lives.
@@ -221,7 +219,8 @@ getModulesWhereDeclarationIs declName =
 
 -- |Executes a query.
 queryDb :: String -> [String] -> ([PersistValue] -> a) -> SQL [a]
-queryDb sql params action = (withStmt (T.pack sql) (map toPersistValue params) $= CL.map action $$ CL.consume)
+queryDb sql params action = rawQuery (T.pack sql) (map toPersistValue params) $= CL.map action
+  $$ CL.consume
 
 
 -- |Gets information from a text value.
@@ -238,8 +237,7 @@ instance HasDbPackage DbPackage where
   getDbPackage = return
 
 instance HasDbPackage DbModule where
-  getDbPackage (DbModule _ _ pkgId) = do pkg <- getJust pkgId
-                                         return pkg
+  getDbPackage (DbModule _ _ pkgId) = getJust pkgId
 
 instance HasDbPackage DbDecl where
   getDbPackage (DbDecl _ _ _ _ _ _ modId) = do md <- getJust modId
@@ -253,8 +251,7 @@ instance HasDbModule DbModule where
   getDbModule = return
 
 instance HasDbModule DbDecl where
-  getDbModule (DbDecl _ _ _ _ _ _ modId) = do md <- getJust modId
-                                              return md
+  getDbModule (DbDecl _ _ _ _ _ _ modId) = getJust modId
 
 instance HasDbModule DbConstructor where
   getDbModule (DbConstructor _ _ declId) = do 

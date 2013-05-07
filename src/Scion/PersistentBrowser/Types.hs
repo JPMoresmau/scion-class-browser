@@ -1,4 +1,4 @@
-{-# LANGUAGE MultiParamTypeClasses, FunctionalDependencies #-}
+{-# LANGUAGE QuasiQuotes, TemplateHaskell,MultiParamTypeClasses, FunctionalDependencies #-}
 
 module Scion.PersistentBrowser.Types where
 
@@ -8,6 +8,12 @@ import qualified Data.Text as T
 import Distribution.Package hiding (Package)
 import qualified Distribution.Package as P
 import Language.Haskell.Exts.Annotated.Syntax
+
+import Database.Persist.TH
+
+data DbDeclType = DbData | DbNewType | DbClass | DbInstance | DbSignature | DbType
+    deriving (Show, Read, Eq)
+derivePersistField "DbDeclType"
 
 -- |Documentation for an item.
 -- Now it is simply a Text element.

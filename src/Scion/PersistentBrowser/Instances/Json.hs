@@ -6,8 +6,8 @@ module Scion.PersistentBrowser.Instances.Json where
 import Control.Applicative
 import Control.Monad
 import Data.Aeson
-import Data.Aeson.Types
 import qualified Data.Text as T
+import Scion.PersistentBrowser.Types
 import Scion.PersistentBrowser.DbTypes
 
 instance ToJSON DbPackage where
