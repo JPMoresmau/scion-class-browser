@@ -5,9 +5,6 @@ module Scion.PersistentHoogle.Parser where
 import Data.List (intercalate)
 import qualified Data.Text as T
 import Database.Persist
--- import Database.Persist.Base
-import Database.Persist.Sqlite
-import Database.Persist.Store
 import Language.Haskell.Exts.Annotated.Syntax
 import Scion.PersistentBrowser.DbTypes
 import Scion.PersistentBrowser.Parser.Internal
