@@ -11,7 +11,7 @@ import Control.Monad.Logger (NoLoggingT(..)) -- LoggingT(..),
 
 type SQL a= SqlPersistT (NoLoggingT (ResourceT IO)) a
 
-share [mkPersist sqlSettings, mkMigrate "migrateAll"] [persistLowerCase|
+share [mkPersist sqlSettings, mkMigrate "migrateAll"] [persistUpperCase|
 DbPackage
     name      String
     version   String
