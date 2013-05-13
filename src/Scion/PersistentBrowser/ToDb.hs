@@ -20,7 +20,7 @@ savePackageToDb (Package doc (PackageIdentifier (PackageName name) version) modu
      mapM_ (saveModuleToDb pkgId) (M.elems modules)
   
 -- saveModuleToDb :: PersistBackend backend m => DbPackageId -> Documented Module -> backend m ()
-saveModuleToDb pkgId (Module doc (Just (ModuleHead _ (ModuleName _ name) _ _)) _ _ decls) =
+saveModuleToDb pkgId (Module doc (Just (ModuleHead _ (ModuleName _ name)_ _)) _ _ decls) =
   do moduleId <- insert $ DbModule name (docToString doc) pkgId
      mapM_ (saveDeclToDb moduleId) decls
 saveModuleToDb _ _ = error "This should never happen"

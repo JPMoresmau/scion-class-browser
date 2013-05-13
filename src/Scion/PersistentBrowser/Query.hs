@@ -48,19 +48,19 @@ modulesByName name (Just (DbPackageIdentifier pkgName pkgVersion)) =
 --  For getting the entire list of modules modules, use "" as initial name.
 getSubmodules :: String -> Maybe DbPackageIdentifier -> SQL [DbModule]
 getSubmodules "" Nothing =
-  do let sql = "SELECT name, doc, packageId FROM DbModule"
+  do let sql = "SELECT DISTINCT name, doc, packageId FROM DbModule"
      queryDb sql [] moduleAction
 getSubmodules "" (Just (DbPackageIdentifier pkgName pkgVersion)) =
-  do let sql = "SELECT DbModule.name, DbModule.doc, DbModule.packageId FROM DbModule, DbPackage"
+  do let sql = "SELECT DISTINCT DbModule.name, DbModule.doc, DbModule.packageId FROM DbModule, DbPackage"
                ++ " WHERE DbModule.packageId = DbPackage.id "
                ++ " AND DbPackage.name = ?"
                ++ " AND DbPackage.version = ?"
      queryDb sql [pkgName, pkgVersion] moduleAction
 getSubmodules modName Nothing =
-  do let sql = "SELECT name, doc, packageId FROM DbModule WHERE name LIKE ?"
+  do let sql = "SELECT DISTINCT name, doc, packageId FROM DbModule WHERE name LIKE ?"
      queryDb sql [modName ++ ".%"] moduleAction
 getSubmodules modName (Just (DbPackageIdentifier pkgName pkgVersion)) =
-  do let sql = "SELECT DbModule.name, DbModule.doc, DbModule.packageId FROM DbModule, DbPackage"
+  do let sql = "SELECT DISTINCT DbModule.name, DbModule.doc, DbModule.packageId FROM DbModule, DbPackage"
                ++ " WHERE name LIKE ?"
                ++ " AND DbModule.packageId = DbPackage.id "
                ++ " AND DbPackage.name = ?"

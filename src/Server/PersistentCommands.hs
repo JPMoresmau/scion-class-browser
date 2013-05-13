@@ -20,6 +20,9 @@ import Scion.Packages
 import System.Directory
 import Data.Conduit (runResourceT)
 import Control.Monad.Logger (runNoLoggingT) --runStderrLoggingT, 
+import Data.List (nub)
+import Data.Vector (fromList)
+
 
 data Command = LoadLocalDatabase FilePath Bool
              | LoadHackageDatabase FilePath Bool
@@ -115,20 +118,20 @@ executeCommand (LoadHackageDatabase path rebuild) =
         else modify (\s -> s { hackageDb = Nothing })
      return (String "ok", True)   
 executeCommand (GetPackages cdb)         = do pkgs <- runDb cdb allPackages
-                                              return (toJSON pkgs, True)
+                                              return (nubJSON pkgs, True)
 executeCommand (GetModules cdb mname)  = 
                                            do smods <- runDb cdb (getSubmodules mname)
-                                              return (toJSON smods, True)
+                                              return (nubJSON smods, True)
 executeCommand (GetDeclarations cdb mname) = 
                                            do decls <- runDb cdb (getDeclsInModule mname)
-                                              return (toJSON decls, True)
+                                              return (nubJSON decls, True)
 executeCommand (GetDeclarationsFromPrefix cdb prefix) = 
                                            do decls <- runDb cdb (getDeclsFromPrefix prefix)
-                                              return (toJSON decls, True)
+                                              return (nubJSON decls, True)
 executeCommand (HoogleQuery cdb query)       = 
                                            do extraH <- fmap extraHooglePath get
                                               results <- runDb cdb (\_ -> H.query extraH query)
-                                              return (toJSON results, True)
+                                              return (nubJSON results, True)
 executeCommand HoogleDownloadData        = do extraH <- fmap extraHooglePath get
                                               ret <- lift $ H.downloadData extraH
                                               return (String $ T.pack $ show ret, True)
@@ -142,6 +145,8 @@ executeCommand (GetDeclarationModules cdb d) =
                                               return (toJSON mods, True)
 executeCommand Quit                      = return (String "ok", False)
 
+nubJSON :: (ToJSON a)=> [a] -> Value
+nubJSON = Array . fromList . nub . map toJSON 
 
 instance FromJSON Command where
   parseJSON (Object v) = case M.lookup (T.pack "command") v of
