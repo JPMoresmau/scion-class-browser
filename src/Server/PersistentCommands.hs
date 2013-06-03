@@ -101,7 +101,7 @@ executeCommand (LoadLocalDatabase path rebuild) =
         then do modify (\s -> s { localDb = Just path })
                 lift $ logToStdout "Local database loaded"
         else modify (\s -> s { localDb = Nothing })
-     return (String "ok", True)   
+     return (ok, True)   
 executeCommand (LoadHackageDatabase path rebuild) =
   do fileExists <- lift $ doesFileExist path
      let fileExists' = fileExists `seq` fileExists
@@ -116,7 +116,7 @@ executeCommand (LoadHackageDatabase path rebuild) =
         then do modify (\s -> s { hackageDb = Just path })
                 lift $ logToStdout "Hackage database loaded"
         else modify (\s -> s { hackageDb = Nothing })
-     return (String "ok", True)   
+     return (ok, True)   
 executeCommand (GetPackages cdb)         = do pkgs <- runDb cdb allPackages
                                               return (nubJSON pkgs, True)
 executeCommand (GetModules cdb mname)  = 
@@ -139,11 +139,14 @@ executeCommand HoogleCheckDatabase       = do extraH <- fmap extraHooglePath get
                                               ret <- lift $ H.checkDatabase extraH
                                               return (String $ T.pack $ show ret, True)
 executeCommand (SetExtraHooglePath p)    = do modify (\s -> s { extraHooglePath = Just p })
-                                              return (String "ok", True)
+                                              return (ok, True)
 executeCommand (GetDeclarationModules cdb d) = 
                                            do mods <- runDb cdb (\_ -> getModulesWhereDeclarationIs d)
                                               return (toJSON mods, True)
-executeCommand Quit                      = return (String "ok", False)
+executeCommand Quit                      = return (ok, False)
+
+ok :: Value
+ok = String "ok"
 
 nubJSON :: (ToJSON a)=> [a] -> Value
 nubJSON = Array . fromList . nub . map toJSON 
