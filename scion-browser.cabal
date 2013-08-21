@@ -1,5 +1,5 @@
 name:           scion-browser
-version:        0.2.17
+version:        0.2.18
 cabal-version:  >= 1.8
 build-type:     Simple
 license:        BSD3
@@ -25,7 +25,7 @@ library
     text == 0.11.*,
     parsec >= 3 && < 4,
     Cabal >= 0.10,
-    haskell-src-exts >= 1.11 && < 2,
+    haskell-src-exts >= 1.11 && < 1.15,
     process >= 1 && < 2,
     tar >= 0.3 && < 0.5,
     zlib == 0.5.*,
@@ -105,7 +105,7 @@ executable scion-browser
     text == 0.11.*,
     parsec >= 3 && < 4,
     Cabal >= 0.10,
-    haskell-src-exts >= 1.11 && < 2,
+    haskell-src-exts >= 1.11 && < 1.15,
     process >= 1 && < 2,
     tar >= 0.3 && < 0.5,
     zlib == 0.5.*,

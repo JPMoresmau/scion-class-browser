@@ -1,4 +1,4 @@
-{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE RankNTypes,CPP #-}
 module Scion.PersistentBrowser.Parser.Internal where
 
 -- import Debug.Trace (trace)
@@ -114,7 +114,11 @@ lonelyComment :: BSParser [Documented Decl]
 lonelyComment = try (docComment >> return [])
 
 parseTypeMode :: Parser.ParseMode
+#if MIN_VERSION_haskell_src_exts(1,14,0)  
+parseTypeMode = Parser.ParseMode "" Haskell98 knownExtensions False False Nothing
+#else
 parseTypeMode = Parser.ParseMode "" knownExtensions False False Nothing
+#endif
 
 parseType :: String -> BSParser (Documented Type)
 parseType st = return (parseType' st)
