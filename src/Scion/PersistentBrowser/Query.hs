@@ -201,20 +201,20 @@ constructorsByName name = do consts <- selectList [ DbConstructorName ==. name ]
                              return $ map entityVal consts
 
 -- | Gets a list of modules where a declaration may live
-getModulesWhereDeclarationIs :: String -> SQL [(DbModule,String)]
+getModulesWhereDeclarationIs :: String -> SQL [(DbModule,String,String)]
 getModulesWhereDeclarationIs declName =
-  do let sqlDecl = "SELECT DbModule.name, DbModule.doc, DbModule.packageId,''"
-                   ++ " FROM DbDecl, DbModule"
-                   ++ " WHERE DbDecl.moduleId = DbModule.id AND DbDecl.name = ?"
-         sqlCons = "SELECT DbModule.name, DbModule.doc, DbModule.packageId,DbDecl.name"
-                   ++ " FROM DbConstructor, DbDecl, DbModule"
+  do let sqlDecl = "SELECT DbModule.name, DbModule.doc, DbModule.packageId,'',DbPackage.name"
+                   ++ " FROM DbDecl, DbModule, DbPackage"
+                   ++ " WHERE DbDecl.moduleId = DbModule.id AND DbDecl.name = ? AND DbPackage.id=DbModule.packageId" 
+         sqlCons = "SELECT DbModule.name, DbModule.doc, DbModule.packageId,DbDecl.name,DbPackage.name"
+                   ++ " FROM DbConstructor, DbDecl, DbModule, DbPackage"
                    ++ " WHERE DbConstructor.declId = DbDecl.id AND DbDecl.moduleId = DbModule.id"
-                   ++ " AND DbConstructor.name = ?"
+                   ++ " AND DbConstructor.name = ? AND DbPackage.id=DbModule.packageId"
      decls <- queryDb sqlDecl [declName] action
      cons <- queryDb sqlCons [declName] action
      return (decls ++ cons)
-  where action :: [PersistValue] -> (DbModule,String)
-        action [PersistText name, doc, pkgId@(PersistInt64 _),PersistText decl] = (DbModule (T.unpack name) (fromDbText doc) (Key pkgId),T.unpack decl)
+  where action :: [PersistValue] -> (DbModule,String,String)
+        action [PersistText name, doc, pkgId@(PersistInt64 _),PersistText decl,PersistText pkgName] = (DbModule (T.unpack name) (fromDbText doc) (Key pkgId),T.unpack decl,T.unpack pkgName)
         action _ = error "This should not happen"
 
 -- |Executes a query.
