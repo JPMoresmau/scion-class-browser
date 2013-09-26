@@ -19,7 +19,6 @@ import qualified Scion.PersistentHoogle as H
 import Scion.Packages
 import System.Directory
 import Data.Conduit (runResourceT)
-import Control.Monad.Logger (runNoLoggingT) --runStderrLoggingT, 
 import Data.List (nub)
 import Data.Vector (fromList)
 
@@ -75,7 +74,7 @@ runWithState (BrowserState lDb hDb _) cdb action =
 runWithState' :: Bool -> Maybe FilePath -> SQL[a] -> IO [ a]
 runWithState' use mpath action = if use && isJust mpath
                                     then do let path = fromJust mpath
-                                            runResourceT $ runNoLoggingT $ withSqliteConn (T.pack path) $ runSqlConn action
+                                            runResourceT $ runLogging $ withSqliteConn (T.pack path) $ runSqlConn action
                                     else return []
 
 runDb :: CurrentDatabase -> (Maybe DbPackageIdentifier -> SQL [a]) -> BrowserM [a]
@@ -91,7 +90,7 @@ executeCommand (LoadLocalDatabase path rebuild) =
   do fileExists <- lift $ doesFileExist path
      let fileExists' = fileExists `seq` fileExists
      when rebuild $
-          lift $ do runResourceT $ runNoLoggingT $ withSqliteConn (T.pack path) $ runSqlConn $ do
+          lift $ do runResourceT $ runLogging $ withSqliteConn (T.pack path) $ runSqlConn $ do
                          runMigration migrateAll
                          createIndexes
                     pkgInfos' <- getPkgInfos
@@ -108,7 +107,7 @@ executeCommand (LoadHackageDatabase path rebuild) =
      when (not fileExists' || rebuild) $
           lift $ do when fileExists' (removeFile path)
                     logToStdout "Rebuilding Hackage database"
-                    runResourceT $ runNoLoggingT $ withSqliteConn (T.pack path) $ runSqlConn $ do
+                    runResourceT $ runLogging $ withSqliteConn (T.pack path) $ runSqlConn $ do
                         runMigration migrateAll
                         createIndexes
                     saveHackageDatabase path

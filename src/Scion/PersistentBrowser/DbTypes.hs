@@ -7,9 +7,15 @@ import Scion.PersistentBrowser.Types
 import Database.Persist.Sqlite
 import Database.Persist.TH
 import Data.Conduit (ResourceT)
-import Control.Monad.Logger (NoLoggingT(..)) -- LoggingT(..),
+import Control.Monad.Logger (LoggingT(..)) -- ,runStderrLoggingT
+import Control.Monad.IO.Class (MonadIO)
 
-type SQL a= SqlPersistT (NoLoggingT (ResourceT IO)) a
+type SQL a= SqlPersistT (LoggingT (ResourceT IO)) a
+
+-- | wrapper around logging methods, so we can enable logging when we debug
+runLogging :: MonadIO m => LoggingT m a -> m a
+runLogging (LoggingT f) = f $ \_ _ _ _ -> return ()
+        -- runStderrLoggingT
 
 share [mkPersist sqlSettings, mkMigrate "migrateAll"] [persistUpperCase|
 DbPackage
