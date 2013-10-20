@@ -7,7 +7,6 @@ module Scion.PersistentHoogle
 
 import Control.Monad
 import Control.Monad.IO.Class (liftIO)
-import Database.Persist.Sqlite
 import Scion.PersistentBrowser ()
 import Scion.PersistentBrowser.Util
 import Scion.PersistentBrowser.DbTypes
@@ -29,10 +28,9 @@ query p q = do mpath <- liftIO $ findHoogleBinPath p
                                    ExitSuccess -> do 
                                                      liftIO $ logToStdout q
                                                      liftIO $ logToStdout output
-                                                     let search = runP hoogleElements () "hoogle-output" (output)
+                                                     let search = runP hoogleElements () "hoogle-output" output
                                                      case search of
-                                                       Right result -> do dbResult <- result
-                                                                          return dbResult
+                                                       Right result -> result
                                                        Left  perr      -> do
                                                         liftIO $ logToStdout $ show perr -- I like to see the error in the log
                                                         return []

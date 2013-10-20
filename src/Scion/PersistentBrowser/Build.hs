@@ -31,14 +31,14 @@ import Text.Parsec.Error (ParseError)
 import Text.ParserCombinators.Parsec.Error (newErrorMessage, Message(..))
 import Text.ParserCombinators.Parsec.Pos (newPos)
 import Text.ParserCombinators.ReadP
-import Control.Monad (when)
+import Control.Monad (unless)
 import Data.Conduit (runResourceT)
 
-baseDbUrl :: String
-baseDbUrl = "http://haskell.org/hoogle/base.txt"
-
-ghcDbUrl :: String
-ghcDbUrl = "http://www.haskell.org/ghc/docs/latest/html/libraries/ghc/ghc.txt"
+--baseDbUrl :: String
+--baseDbUrl = "http://haskell.org/hoogle/base.txt"
+--
+--ghcDbUrl :: String
+--ghcDbUrl = "http://www.haskell.org/ghc/docs/latest/html/libraries/ghc/ghc.txt"
 
 hoogleDbUrl :: String
 hoogleDbUrl = "http://hackage.haskell.org/packages/archive/00-hoogle.tar.gz"
@@ -51,7 +51,7 @@ getPackageUrlHackage (PackageIdentifier (PackageName name) version) =
 -- | Gets the version of GHC used
 getGhcInstalledVersion :: [PackageIdentifier] -> Version
 getGhcInstalledVersion []     = error "No GHC found"
-getGhcInstalledVersion ((PackageIdentifier (PackageName "ghc") version):_) = version
+getGhcInstalledVersion (PackageIdentifier (PackageName "ghc") version : _) = version
 getGhcInstalledVersion (_:xs) = getGhcInstalledVersion xs
 
 -- | Gets the url of a package from GHC libraries
@@ -115,16 +115,15 @@ updateDatabase' pkgInfo =
          installedList = nub $ removeSmallVersions $ map sourcePackageId pkgInfo
          toRemove      = dbList \\ installedList
          toAdd         = installedList \\ dbList
-     when (not $ null toRemove) (do
+     unless (null toRemove) (
         liftIO $ logToStdout $ "Removing " ++ show (map (\(PackageIdentifier (PackageName name) _) -> name) toRemove))
      mapM_ deletePackageByInfo toRemove
-     when (not $ null toAdd) (do
+     unless (null toAdd) (
         liftIO $ logToStdout $ "Adding " ++ show (map (\(PackageIdentifier (PackageName name) _) -> name) toAdd))
      let ghcVersion = getGhcInstalledVersion installedList
      (addedDb, errors) <- liftIO $ createCabalDatabase' ghcVersion toAdd True
      mapM_ savePackageToDb addedDb
-     when (not $ null errors) (do
-        liftIO $ logToStdout $ show errors)
+     unless (null errors) (liftIO $ logToStdout $ show errors)
 
 fromDbToPackageIdentifier :: DbPackage -> PackageIdentifier
 fromDbToPackageIdentifier (DbPackage name version _) = PackageIdentifier (PackageName name)
