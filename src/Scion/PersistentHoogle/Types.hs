@@ -9,6 +9,7 @@ data Result = RPackage     [DbPackage]
             | RDeclaration [(DbPackageIdentifier, String, DbCompleteDecl)]
             | RConstructor [(DbPackageIdentifier, String, DbCompleteDecl, DbConstructor)]
             | RKeyword     String
+            | RWarning     String -- ^ a warning
 
 data Query = Query String
 

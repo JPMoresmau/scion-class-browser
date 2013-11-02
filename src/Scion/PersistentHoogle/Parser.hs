@@ -20,6 +20,7 @@ data HalfResult = HalfPackage  String
                 | HalfDecl     String (Documented Decl)
                 | HalfGadtDecl String (Documented GadtDecl)
                 | HalfKeyword  String
+                | HalfWarning  String -- ^ a warning
 
 hoogleElements :: BSParser (SQL [Result])
 hoogleElements = do elts <- hoogleElements'
@@ -66,6 +67,11 @@ hoogleElement =   try (do pname <- hooglePackageName
                           return $ HalfDecl mname d)
               <|> try (do (mname, d) <- moduled (constructor NoDoc)
                           return $ HalfGadtDecl mname d)
+              <|> try (do 
+                        string "Warning:"
+                        spaces0
+                        s<-restOfLine
+                        return $ HalfWarning s)
 
 moduled :: BSParser a -> BSParser (String, a)
 moduled p = try (do mname <- try conid `sepBy` char '.'
@@ -92,6 +98,8 @@ hoogleKeyword = do string "keyword"
 convertHalfToResult :: HalfResult -> SQL (Maybe Result)
 convertHalfToResult (HalfKeyword kw) =
   return $ Just (RKeyword kw)
+convertHalfToResult (HalfWarning w) =
+  return $ Just (RWarning w)
 convertHalfToResult (HalfPackage  pname) = 
   do pkgs <- packagesByName pname Nothing
      case pkgs of

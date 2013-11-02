@@ -28,6 +28,9 @@ instance ToJSON (Result) where
   toJSON (RKeyword kw)        = object [ "type"    .= T.pack "keyword"
                                        , "name"    .= kw
                                        ]
+  toJSON (RWarning w)         = object [ "type"    .= T.pack "warning"
+                                       , "name"    .= w
+                                       ]
 
 instance FromJSON (Query) where
   parseJSON q = Query <$> parseJSON q
