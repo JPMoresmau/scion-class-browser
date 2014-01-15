@@ -18,7 +18,7 @@ source-repository head
 library
   hs-source-dirs:  src
   build-depends:
-    attoparsec >= 0.10,
+    attoparsec >= 0.10 && < 0.12,
     base == 4.*,
     mtl >= 2,
     derive >= 2.5 && < 3,
@@ -31,7 +31,7 @@ library
     zlib == 0.5.*,
     HTTP >= 4000 && < 5000,
     deepseq >= 1.1 && < 2,
-    aeson >= 0.4,
+    aeson >=0.4 && <0.8,
     parallel-io >= 0.3,
     utf8-string,
     persistent >= 1.2,
