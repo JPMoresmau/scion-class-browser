@@ -32,7 +32,7 @@ import Text.ParserCombinators.Parsec.Error (newErrorMessage, Message(..))
 import Text.ParserCombinators.Parsec.Pos (newPos)
 import Text.ParserCombinators.ReadP
 import Control.Monad (unless)
-import Data.Conduit (runResourceT)
+import Control.Monad.Trans.Resource (runResourceT)
 
 --baseDbUrl :: String
 --baseDbUrl = "http://haskell.org/hoogle/base.txt"

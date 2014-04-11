@@ -18,7 +18,7 @@ import Scion.PersistentBrowser.Util (logToStdout)
 import qualified Scion.PersistentHoogle as H
 import Scion.Packages
 import System.Directory
-import Data.Conduit (runResourceT)
+import Control.Monad.Trans.Resource (runResourceT)
 import Data.List (nub)
 import Data.Vector (fromList)
 

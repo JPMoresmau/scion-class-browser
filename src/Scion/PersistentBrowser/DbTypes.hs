@@ -6,7 +6,7 @@ import Scion.PersistentBrowser.Types
 
 import Database.Persist.Sqlite
 import Database.Persist.TH
-import Data.Conduit (ResourceT)
+import Control.Monad.Trans.Resource (ResourceT)
 import Control.Monad.Logger (LoggingT(..)) -- ,runStderrLoggingT
 import Control.Monad.IO.Class (MonadIO)
 
