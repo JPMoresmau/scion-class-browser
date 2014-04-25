@@ -29,6 +29,9 @@ executeCommand tmp exe args showOutput =
 #if __GLASGOW_HASKELL__ >= 702
                                False 
 #endif
+#if __GLASGOW_HASKELL__ >= 708
+                               False
+#endif
      (_, _, _, h) <- createProcess cproc
      waitForProcess h
 
