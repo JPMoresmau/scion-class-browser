@@ -5,3 +5,4 @@
 /.hsproject
 /cabal-dev
 
+/cabal.sandbox.config

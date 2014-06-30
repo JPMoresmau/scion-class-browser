@@ -1,5 +1,5 @@
 name:           scion-browser
-version:        0.3.1
+version:        0.3.2
 cabal-version:  >= 1.8
 build-type:     Simple
 license:        BSD3
@@ -18,14 +18,14 @@ source-repository head
 library
   hs-source-dirs:  src
   build-depends:
-    attoparsec >= 0.10 && < 0.12,
+    attoparsec >= 0.10 && < 0.13,
     base == 4.*,
     mtl >= 2,
     derive >= 2.5 && < 3,
-    text == 0.11.*,
+    text,
     parsec >= 3 && < 4,
     Cabal >= 0.10,
-    haskell-src-exts >= 1.11 && < 1.15,
+    haskell-src-exts >= 1.11 && < 1.16,
     process >= 1 && < 2,
     tar >= 0.3 && < 0.5,
     zlib == 0.5.*,
@@ -103,10 +103,10 @@ executable scion-browser
     base == 4.*,
     mtl >= 2,
     derive >= 2.5 && < 3,
-    text == 0.11.*,
+    text,
     parsec >= 3 && < 4,
     Cabal >= 0.10,
-    haskell-src-exts >= 1.11 && < 1.15,
+    haskell-src-exts >= 1.11 && < 1.16,
     process >= 1 && < 2,
     tar >= 0.3 && < 0.5,
     zlib == 0.5.*,
