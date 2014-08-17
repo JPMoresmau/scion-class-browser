@@ -263,12 +263,20 @@ kindL = (do char '('
         (do char '!'
             return $ KindBang NoDoc)
         <|>
+#if MIN_VERSION_haskell_src_exts(1,15,0)
+        (do n <- varid
+            return $ KindVar NoDoc $ UnQual NoDoc n)
+        <|>
+        (do n <- conid
+            return $ KindVar NoDoc $ UnQual NoDoc n)  
+#else        
         (do n <- varid
             return $ KindVar NoDoc n)
         <|>
         (do n <- conid
             return $ KindVar NoDoc n)
-            
+#endif
+
 instance_ :: Doc -> BSParser (Documented Decl)
 instance_ doc = do string "instance"
                    -- HACK: in some Hoogle files things like [overlap ok] appear
