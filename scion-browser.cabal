@@ -1,5 +1,5 @@
 name:           scion-browser
-version:        0.3.2
+version:        0.3.3
 cabal-version:  >= 1.8
 build-type:     Simple
 license:        BSD3
@@ -34,7 +34,7 @@ library
     aeson >=0.4 && <0.8,
     parallel-io >= 0.3,
     utf8-string,
-    persistent >= 1.2,
+    persistent >= 1.2 && < 2,
     persistent-sqlite >= 1.2,
     persistent-template >= 1.2,
     conduit>=1.0,
@@ -115,7 +115,7 @@ executable scion-browser
     aeson >= 0.4,
     parallel-io >= 0.3,
     utf8-string,
-    persistent >= 1.2,
+    persistent >= 1.2 && <2,
     persistent-sqlite >= 1.2,
     persistent-template >= 1.2,
     conduit>=1.0,
