@@ -1,4 +1,4 @@
-{-# LANGUAGE QuasiQuotes, TemplateHaskell,MultiParamTypeClasses, FunctionalDependencies #-}
+{-# LANGUAGE QuasiQuotes, TemplateHaskell,MultiParamTypeClasses, FunctionalDependencies, CPP #-}
 
 module Scion.PersistentBrowser.Types where
 
@@ -80,10 +80,18 @@ instance DocItem Module Decl where
   getChildren _                      = []
 
 instance Named Decl where
+
+#if MIN_VERSION_haskell_src_exts(1,16,0) 
+  getName (TypeDecl _ (DHead _ name) _)          = getNameString name
+  getName (GDataDecl _ _ _ (DHead _ name) _ _ _) = getNameString name
+  getName (ClassDecl _ _ (DHead _ name) _ _)     = getNameString name
+  getName (InstDecl _ _ (IRule _ _ _ (IHCon _ name )) _)        = getQNameString name
+#else  
   getName (TypeDecl _ (DHead _ name _) _)          = getNameString name
   getName (GDataDecl _ _ _ (DHead _ name _) _ _ _) = getNameString name
   getName (ClassDecl _ _ (DHead _ name _) _ _)     = getNameString name
   getName (InstDecl _ _ (IHead _ name _) _)        = getQNameString name
+#endif  
   getName (TypeSig _ name _)                       = concat $ intersperse "," $ map getNameString name
   getName v                                        = error $ "This should not be possible: " ++ show v
 
@@ -92,5 +100,8 @@ instance DocItem Decl GadtDecl where
   getChildren _                            = []
 
 instance Named GadtDecl where
+#if MIN_VERSION_haskell_src_exts(1,16,0) 
+  getName (GadtDecl _ name _ _) = getNameString name
+#else
   getName (GadtDecl _ name _) = getNameString name
-
+#endif

@@ -10,10 +10,10 @@ import Distribution.Package (PackageIdentifier(..), PackageName(..))
 import Distribution.Version
 import Language.Haskell.Exts.Annotated.Syntax
 import Language.Haskell.Exts.Extension
-import qualified Language.Haskell.Exts.Parser as Parser
+import qualified Language.Haskell.Exts.Annotated as Parser
 import Scion.PersistentBrowser.Types
 import Scion.PersistentBrowser.FromMissingH (replace)
-import Scion.PersistentBrowser.Parser.Documentable
+-- import Scion.PersistentBrowser.Parser.Documentable
 import Text.Parsec.String as BS
 import Text.Parsec.Char
 import Text.Parsec.Combinator
@@ -90,7 +90,7 @@ moduleName = do cons <- conid `sepBy` char '.'
 
 getModuleName :: Documented Module -> String
 getModuleName (Module _ (Just (ModuleHead _ (ModuleName _ name) _ _)) _ _ _) = name
-getModuleName _ = error "This should never happen"
+getModuleName _ = error "getModuleName: This should never happen: a module with no name"
 
 decl :: Doc -> BSParser [Documented Decl]
 decl doc =  choice [ listed $ function doc
@@ -131,7 +131,7 @@ parseType' st = let parseString = eliminateUnwanted st
                     parsed = Parser.parseTypeWithMode parseTypeMode noHashString
                  in case parsed of
                       Parser.ParseFailed _ _ -> TyVar NoDoc (Ident NoDoc "not parsed")
-                      Parser.ParseOk ty -> mapOnNames (theInverseReplacements . generateInverseLatinReplacements nonAsciiChars) (document NoDoc ty)
+                      Parser.ParseOk ty -> mapOnNames (theInverseReplacements . generateInverseLatinReplacements nonAsciiChars) (fmap (const NoDoc) ty)
 
 theReplacements :: String -> String
 theReplacements = (replace "#" "__HASH__") . (replace "[:" "__GHC_ARR_OPEN__") . (replace ":]" "__GHC_ARR_CLOSE__") . (replace "!" "BANG__")
@@ -173,6 +173,7 @@ mapOnNames f (TyCon doc name) = TyCon doc (mapOnNamesQName f name)
 mapOnNames f (TyParen doc ty) = TyParen doc (mapOnNames f ty)
 mapOnNames f (TyInfix doc t1 name t2) = TyInfix doc (mapOnNames f t1) (mapOnNamesQName f name) (mapOnNames f t2)
 mapOnNames f (TyKind doc ty k) = TyKind doc (mapOnNames f ty) k
+mapOnNames _ r = r
 
 mapOnNamesTyVar :: (String -> String) -> Documented TyVarBind -> Documented TyVarBind
 mapOnNamesTyVar f (KindedVar doc name k) = KindedVar doc (mapOnNamesName f name) k
@@ -190,7 +191,9 @@ mapOnNamesQName _ q@(Special _ _)       = q
 mapOnNamesContext :: (String -> String) -> Documented Context -> Documented Context
 mapOnNamesContext f (CxSingle doc asst) = CxSingle doc (mapOnNamesAsst f asst)
 mapOnNamesContext f (CxTuple doc assts) = CxTuple doc (fmap (mapOnNamesAsst f) assts)
+#if !MIN_VERSION_haskell_src_exts(1,16,0) 
 mapOnNamesContext f (CxParen doc ctx)   = CxParen doc (mapOnNamesContext f ctx)         
+#endif
 mapOnNamesContext _ (CxEmpty doc)       = CxEmpty doc
 
 mapOnNamesAsst :: (String -> String) -> Documented Asst -> Documented Asst
@@ -198,6 +201,7 @@ mapOnNamesAsst f (ClassA doc name tys) = ClassA doc (mapOnNamesQName f name) (fm
 mapOnNamesAsst f (InfixA doc ty1 name ty2) = InfixA doc (mapOnNames f ty1) (mapOnNamesQName f name) (mapOnNames f ty2)
 mapOnNamesAsst f (IParam doc name ty) = IParam doc (mapOnNamesIPName f name) (mapOnNames f ty)
 mapOnNamesAsst f (EqualP doc ty1 ty2) = EqualP doc (mapOnNames f ty1) (mapOnNames f ty2)
+mapOnNamesAsst _ r = r
 
 mapOnNamesIPName :: (String -> String) -> Documented IPName -> Documented IPName
 mapOnNamesIPName f (IPDup doc s) = IPDup doc (f s)
@@ -231,7 +235,11 @@ function doc = do (names, ty) <- functionLike varid
 
 constructor :: Doc -> BSParser (Documented GadtDecl)
 constructor doc = do (names, ty) <- functionLike conid
+#if MIN_VERSION_haskell_src_exts(1,16,0) 
+                     return $ GadtDecl doc (head names) Nothing ty
+#else
                      return $ GadtDecl doc (head names) ty
+#endif
 
 constructorOrFunction :: Doc -> BSParser (Either (Documented Decl) (Documented GadtDecl))
 constructorOrFunction doc = do f <- function doc
@@ -290,8 +298,13 @@ instance_ doc = do string "instance"
                    let (ctx, ty) = getContextAndType ty'
                        (qhead:params) = lineariseType ty
                    case qhead of
+#if MIN_VERSION_haskell_src_exts(1,16,0) 
+                     TyCon _ qname -> return $ InstDecl doc Nothing (IRule NoDoc Nothing ctx (IHCon NoDoc qname)) Nothing
+                     _             -> return $ InstDecl doc Nothing (IRule NoDoc Nothing ctx (IHCon NoDoc (UnQual NoDoc (Ident NoDoc "#unparsed#")))) Nothing
+#else                   
                      TyCon _ qname -> return $ InstDecl doc ctx (IHead NoDoc qname params) Nothing
                      _             -> return $ InstDecl doc ctx (IHead NoDoc (UnQual NoDoc (Ident NoDoc "#unparsed#")) params) Nothing
+#endif
 
 type_ :: Doc -> BSParser (Documented Decl)
 type_ doc = do string "type"
@@ -303,7 +316,12 @@ type_ doc = do string "type"
                spaces0
                rest <- restOfLine
                ty <- parseType rest
+#if MIN_VERSION_haskell_src_exts(1,16,0) 
+               let h = foldl (\h1 tv -> DHApp NoDoc h1 tv) (DHead NoDoc con) vars
+               return $ TypeDecl doc h ty
+#else
                return $ TypeDecl doc (DHead NoDoc con vars) ty
+#endif
 
 tyVarBind :: BSParser (Documented TyVarBind)
 tyVarBind = (do char '('
@@ -549,8 +567,13 @@ typeToContextAndHead t = let (ctx, ty) = getContextAndType t
                                 ((TyCon _ (Qual _ _ name')):params) -> (name', toKindedVars params) 
                                 ((TyCon _ (Special l _)):params)    -> (Symbol l "", toKindedVars params)
                                 (_:params)                          -> (Ident NoDoc "#unparsed#", toKindedVars params)
-                                []                                  -> error "This should never happen"
+                                []                                  -> error $ "typeToContextAndHead: This should never happen: " ++ (show $ lineariseType ty)
+#if MIN_VERSION_haskell_src_exts(1,16,0) 
+                             h = foldl (\h1 tv -> DHApp NoDoc h1 tv) (DHead NoDoc name) vars
+                         in  (ctx, h)
+#else
                          in  (ctx, DHead NoDoc name vars)
+#endif
 
 toKindedVars :: [Type Doc] -> [TyVarBind Doc]
 toKindedVars []         = []
@@ -558,5 +581,7 @@ toKindedVars ((TyVar d (Ident _ n1)):( (TyList _ (TyVar _ (Ident _ n2))): xs )) 
   (UnkindedVar d (Ident NoDoc $ n1 ++ "[" ++ n2 ++ "]")) : toKindedVars xs
 toKindedVars ((TyVar d n):xs)       = (UnkindedVar d n) : toKindedVars xs
 toKindedVars ((TyParen _ inner):xs) = toKindedVars (inner:xs)
-toKindedVars (x:_)                  = error $ show x
+toKindedVars ((TyApp _ t _):xs) = toKindedVars [t] ++ toKindedVars xs
+-- TyApp NoDoc (TyApp NoDoc (TyVar NoDoc (Ident NoDoc "l_a5YI")) (TyCon NoDoc (UnQual NoDoc (Ident NoDoc "Z")))) (TyCon NoDoc (UnQual NoDoc (Ident NoDoc "Z")))
+toKindedVars _                  = [] -- error $ show x
 

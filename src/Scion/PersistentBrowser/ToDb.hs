@@ -1,6 +1,7 @@
-{-# LANGUAGE RankNTypes, KindSignatures #-}
+{-# LANGUAGE RankNTypes, KindSignatures, CPP #-}
 module Scion.PersistentBrowser.ToDb where
 
+import Data.Maybe (maybeToList)
 import qualified Data.Map as M
 import qualified Data.Text as T
 import Data.Version (showVersion)
@@ -8,6 +9,7 @@ import Database.Persist
 import Distribution.Package hiding (Package)
 import Language.Haskell.Exts.Annotated.Syntax hiding (String)
 import Language.Haskell.Exts.Pretty
+import Language.Haskell.Exts.SrcLoc
 import Scion.PersistentBrowser.DbTypes
 import Scion.PersistentBrowser.Types
 
@@ -23,7 +25,7 @@ savePackageToDb (Package doc (PackageIdentifier (PackageName name) version) modu
 saveModuleToDb pkgId (Module doc (Just (ModuleHead _ (ModuleName _ name)_ _)) _ _ decls) =
   do moduleId <- insert $ DbModule name (docToString doc) pkgId
      mapM_ (saveDeclToDb moduleId) decls
-saveModuleToDb _ _ = error "This should never happen"
+saveModuleToDb _ m = error $ "saveModuleToDb: This should never happen" ++ (show m)
 
 -- saveDeclToDb :: PersistBackend backend m => DbModuleId -> Documented Decl -> backend m ()
 -- Datatypes
@@ -51,8 +53,14 @@ saveDeclToDb moduleId (ClassDecl doc ctx hd fdeps _) =
      mapM_ (saveContextToDb declId) (contextToDb (maybeEmptyContext ctx))
      mapM_ (saveFunDepToDb declId) (map singleLinePrettyPrint fdeps)
 -- Instances
+#if MIN_VERSION_haskell_src_exts(1,16,0) 
+saveDeclToDb moduleId (InstDecl doc _ hd _) =
+  do let (declName, declVars) = instRuleToDb hd
+         ctx = Nothing
+#else
 saveDeclToDb moduleId (InstDecl doc ctx hd _) =
   do let (declName, declVars) = instHeadToDb hd
+#endif
      declId <- insert $ DbDecl DbInstance declName (docToString doc)
                                Nothing Nothing Nothing moduleId
      mapM_ (saveTyVarToDb declId) declVars
@@ -70,7 +78,7 @@ saveDeclToDb moduleId (TypeDecl doc hd ty) =
                                Nothing Nothing (Just (singleLinePrettyPrint ty)) moduleId
      mapM_ (saveTyVarToDb declId) declVars
 -- Other
-saveDeclToDb _ _ = error "This should never happen"
+saveDeclToDb _ t = error $ "saveDeclToDb: This should never happen" ++ (show t)
 
 -- saveTyVarToDb :: PersistBackend backend m => DbDeclId -> String -> backend m ()
 saveTyVarToDb declId var = insert $ DbTyVar var declId
@@ -82,8 +90,11 @@ saveFunDepToDb declId var = insert $ DbTyVar var declId
 saveContextToDb declId ctx = insert $ DbContext ctx declId
 
 -- saveConstructorToDb :: PersistBackend backend m => DbDeclId -> Documented GadtDecl -> backend m ()
+#if MIN_VERSION_haskell_src_exts(1,16,0) 
+saveConstructorToDb declId (GadtDecl _ name _ ty) = insert $ DbConstructor (getNameString name) (singleLinePrettyPrint ty) declId
+#else
 saveConstructorToDb declId (GadtDecl _ name ty) = insert $ DbConstructor (getNameString name) (singleLinePrettyPrint ty) declId
-
+#endif
 -- DELETE PACKAGE FROM DATABASE
 -- ============================
 
@@ -120,13 +131,37 @@ docToString :: Doc -> Maybe String
 docToString NoDoc     = Nothing
 docToString (Doc doc) = Just (T.unpack doc)
 
-declHeadToDb :: DeclHead l -> (String, [String])
+declHeadToDb :: (Show l) => DeclHead l -> (String, [String])
+#if MIN_VERSION_haskell_src_exts(1,16,0) 
+declHeadToDb (DHead _ name) = (getNameString name, [])
+declHeadToDb (DHApp _ h _) = declHeadToDb h
+#else
 declHeadToDb (DHead _ name vars) = (getNameString name, map singleLinePrettyPrint vars)
-declHeadToDb _ = error "This should never happen"
+#endif
+declHeadToDb h = error $ "declHeadToDb: This should never happen" ++ (show h)
 
-instHeadToDb :: InstHead l -> (String, [String])
+#if MIN_VERSION_haskell_src_exts(1,16,0) 
+instRuleToDb :: (Show l) => InstRule l -> (String, [String])
+instRuleToDb (IRule _ mt _ (IHCon _ name )) = (getQNameString name, map singleLinePrettyPrint $ concat $ maybeToList mt)
+instRuleToDb r = error $ "instRuleToDb: This should never happen" ++ (show r)
+#endif
+
+instHeadToDb :: (Show l) => InstHead l -> (String, [String])
+#if MIN_VERSION_haskell_src_exts(1,16,0) 
+instHeadToDb (IHCon _ name) = (getQNameString name, [])
+#else
 instHeadToDb (IHead _ name vars) = (getQNameString name, map singleLinePrettyPrint vars)
-instHeadToDb _ = error "This should never happen"
+#endif
+instHeadToDb h = error $ "instHeadToDb: This should never happen" ++ (show h)
+
+#if MIN_VERSION_haskell_src_exts(1,16,0) 
+instance SrcInfo Doc where
+  toSrcInfo _ _ _ = NoDoc
+  fromSrcInfo _ = NoDoc
+  fileName = const "<unknown"
+  startLine = const 0
+  startColumn = const 0
+#endif
 
 singleLinePrettyPrint :: Pretty a => a -> String
 singleLinePrettyPrint = prettyPrintWithMode $ defaultMode { layout = PPNoLayout }
@@ -135,9 +170,15 @@ maybeEmptyContext :: Maybe (Documented Context) -> Documented Context
 maybeEmptyContext Nothing    = CxEmpty NoDoc
 maybeEmptyContext (Just ctx) = ctx
 
+#if MIN_VERSION_haskell_src_exts(1,16,0) 
+contextToDb :: (SrcInfo l) => Context l -> [String]
+#else
 contextToDb :: Context l -> [String]
+#endif
 contextToDb (CxSingle _ a)  = [ singleLinePrettyPrint a ]
 contextToDb (CxTuple _ as)  = map singleLinePrettyPrint as
+#if !MIN_VERSION_haskell_src_exts(1,16,0) 
 contextToDb (CxParen _ ctx) = contextToDb ctx
+#endif
 contextToDb (CxEmpty _)     = []
 
