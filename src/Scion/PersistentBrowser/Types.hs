@@ -73,7 +73,7 @@ class (Named parent, Named child) => DocItem parent child | parent -> child wher
 
 instance Named Module where
   getName (Module _ (Just (ModuleHead _ (ModuleName _ name) _ _)) _ _ _) = name
-  getName v                                                              = error $ "This should not be possible: " ++ show v
+  getName v                                                              = error $ "This module should not be possible: " ++ show v
 
 instance DocItem Module Decl where
   getChildren (Module _ _ _ _ decls) = decls
@@ -83,6 +83,7 @@ instance Named Decl where
 
 #if MIN_VERSION_haskell_src_exts(1,16,0) 
   getName (TypeDecl _ (DHead _ name) _)          = getNameString name
+  getName (TypeDecl a (DHApp _ h _) b)           = getName $ TypeDecl a h b
   getName (GDataDecl _ _ _ (DHead _ name) _ _ _) = getNameString name
   getName (ClassDecl _ _ (DHead _ name) _ _)     = getNameString name
   getName (InstDecl _ _ (IRule _ _ _ (IHCon _ name )) _)        = getQNameString name
@@ -93,7 +94,7 @@ instance Named Decl where
   getName (InstDecl _ _ (IHead _ name _) _)        = getQNameString name
 #endif  
   getName (TypeSig _ name _)                       = concat $ intersperse "," $ map getNameString name
-  getName v                                        = error $ "This should not be possible: " ++ show v
+  getName v                                        = error $ "This decl should not be possible: " ++ show v
 
 instance DocItem Decl GadtDecl where
   getChildren (GDataDecl _ _ _ _ _ cons _) = cons
