@@ -16,21 +16,21 @@ import Scion.PersistentBrowser.Build
 import Scion.PersistentBrowser.Query
 import Scion.PersistentBrowser.Util (logToStdout)
 import qualified Scion.PersistentHoogle as H
-import Scion.Packages
+import Language.Haskell.Packages
 import System.Directory
 import Control.Monad.Trans.Resource (runResourceT)
 import Data.List (nub)
 import Data.Vector (fromList)
 
 
-data Command = LoadLocalDatabase FilePath Bool
+data Command = LoadLocalDatabase FilePath Bool (Maybe FilePath)
              | LoadHackageDatabase FilePath Bool
              | GetPackages CurrentDatabase
              | GetModules CurrentDatabase String
              | GetDeclarations CurrentDatabase String 
-             | HoogleQuery CurrentDatabase String
-             | HoogleDownloadData
-             | HoogleCheckDatabase
+             | HoogleQuery CurrentDatabase String (Maybe FilePath)
+             | HoogleDownloadData (Maybe FilePath)
+             | HoogleCheckDatabase (Maybe FilePath)
              | GetDeclarationModules CurrentDatabase String
              | SetExtraHooglePath String
              | GetDeclarationsFromPrefix CurrentDatabase String 
@@ -86,14 +86,14 @@ runDb cdb action =
 type BrowserM = StateT BrowserState IO
 
 executeCommand :: Command -> BrowserM (Value, Bool)  -- Bool indicates if continue receiving commands
-executeCommand (LoadLocalDatabase path rebuild) =
+executeCommand (LoadLocalDatabase path rebuild msandbox) =
   do fileExists <- lift $ doesFileExist path
      let fileExists' = fileExists `seq` fileExists
      when rebuild $
           lift $ do runResourceT $ runLogging $ withSqliteConn (T.pack path) $ runSqlConn $ do
                          runMigration migrateAll
                          createIndexes
-                    pkgInfos' <- getPkgInfos
+                    pkgInfos' <- getPkgInfos msandbox
                     let pkgInfos = concat $ map snd pkgInfos'
                     updateDatabase path pkgInfos
      if fileExists' || rebuild -- If the file already existed or was rebuilt
@@ -127,16 +127,18 @@ executeCommand (GetDeclarations cdb mname) =
 executeCommand (GetDeclarationsFromPrefix cdb prefix) = 
                                            do decls <- runDb cdb (getDeclsFromPrefix prefix)
                                               return (nubJSON decls, True)
-executeCommand (HoogleQuery cdb query)       = 
+executeCommand (HoogleQuery cdb query msandbox)       = 
                                            do extraH <- fmap extraHooglePath get
-                                              results <- runDb cdb (\_ -> H.query extraH query)
+                                              results <- runDb cdb (\_ -> H.query msandbox extraH query)
                                               return (nubJSON results, True)
-executeCommand HoogleDownloadData        = do extraH <- fmap extraHooglePath get
-                                              ret <- lift $ H.downloadData extraH
-                                              return (String $ T.pack $ show ret, True)
-executeCommand HoogleCheckDatabase       = do extraH <- fmap extraHooglePath get
-                                              ret <- lift $ H.checkDatabase extraH
-                                              return (String $ T.pack $ show ret, True)
+executeCommand (HoogleDownloadData msandbox)        = do 
+  extraH <- fmap extraHooglePath get
+  ret <- lift $ H.downloadData msandbox extraH
+  return (String $ T.pack $ show ret, True)
+executeCommand (HoogleCheckDatabase msandbox) = do 
+  extraH <- fmap extraHooglePath get
+  ret <- lift $ H.checkDatabase msandbox extraH
+  return (String $ T.pack $ show ret, True)
 executeCommand (SetExtraHooglePath p)    = do modify (\s -> s { extraHooglePath = Just p })
                                               return (ok, True)
 executeCommand (GetDeclarationModules cdb d) = 
@@ -156,6 +158,7 @@ instance FromJSON Command where
                              case T.unpack e of
                                "load-local-db"     -> LoadLocalDatabase <$> v .: "filepath"
                                                                         <*> v .: "rebuild"
+                                                                        <*> v .:? "sandbox"
                                "load-hackage-db"   -> LoadHackageDatabase <$> v .: "filepath"
                                                                           <*> v .: "rebuild"
                                "get-packages"      -> GetPackages <$> v .: "db"
@@ -167,8 +170,9 @@ instance FromJSON Command where
                                                                 <*> v .: "prefix" 
                                "hoogle-query"      -> HoogleQuery <$> v .: "db"
                                                                 <*> v .: "query"
-                               "hoogle-data"       -> pure HoogleDownloadData
-                               "hoogle-check"      -> pure HoogleCheckDatabase
+                                                                <*> v .:? "sandbox"
+                               "hoogle-data"       -> HoogleDownloadData <$> v .:? "sandbox"
+                               "hoogle-check"      -> HoogleCheckDatabase <$> v .:? "sandbox"
                                "extra-hoogle-path" -> SetExtraHooglePath <$> v .: "path"
                                "get-decl-module"   -> GetDeclarationModules <$> v .: "db"
                                                                 <*> v .: "decl"

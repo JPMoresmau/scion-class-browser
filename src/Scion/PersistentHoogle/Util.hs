@@ -10,47 +10,49 @@ import Distribution.Compiler
 import Distribution.InstalledPackageInfo
 import Distribution.Package
 import Distribution.Simple.InstallDirs
-import Scion.Packages
+import Language.Haskell.Packages
 import System.FilePath
 import System.Directory (doesFileExist, getAppUserDataDirectory, getHomeDirectory)
 
 -- Functions for finding Hoogle in the system
 
-findHoogleBinPath :: Maybe String -> IO (Maybe String)
-findHoogleBinPath extraPath = do
-  p1 <- findHoogleBinInLibrary getHoogleBinPath1
-  p2 <- findHoogleBinInLibrary getHoogleBinPath2
+findHoogleBinPath :: Maybe FilePath -> Maybe FilePath -> IO (Maybe String)
+findHoogleBinPath msandbox extraPath = do
+  p1 <- findHoogleBinInLibrary msandbox getHoogleBinPath1
+  p2 <- findHoogleBinInLibrary msandbox getHoogleBinPath2
   p3 <- getHoogleBinPathCabalAPI
   p4 <- getHoogleBinPathCabalDir
   p5 <- getHoogleBinPathMacOsDir
   let placesToSearch = (catMaybes [extraPath, p1, p2]) ++ [p4, p5] ++ p3
   findPathsAndCheck placesToSearch
 
-findPathsAndCheck :: [String] -> IO (Maybe String)
+findPathsAndCheck :: [FilePath] -> IO (Maybe String)
 findPathsAndCheck []     = return Nothing
 findPathsAndCheck (f:fs) = do r <- findPathAndCheck f
                               case r of
                                 Nothing -> findPathsAndCheck fs
                                 _       -> return r
 
-findPathAndCheck :: String -> IO (Maybe String)
+findPathAndCheck :: FilePath -> IO (Maybe String)
 findPathAndCheck path = do 
   exists <- doesFileExist path
   if exists
      then return (Just path)
      else return Nothing
 
-findHoogleBinInLibrary :: (String -> String) -> IO (Maybe String)
-findHoogleBinInLibrary f = do minfo <- findHoogleInfo
-                              case minfo of
-                                Nothing   -> return Nothing
-                                Just info -> let [libDir] = libraryDirs info
-                                             in  return $ Just (f libDir)
+findHoogleBinInLibrary :: Maybe FilePath -> (String -> String) -> IO (Maybe String)
+findHoogleBinInLibrary msandbox f = do 
+  minfo <- findHoogleInfo msandbox
+  case minfo of
+    Nothing   -> return Nothing
+    Just info -> let [libDir] = libraryDirs info
+                 in  return $ Just (f libDir)
 
-findHoogleInfo :: IO (Maybe InstalledPackageInfo)
-findHoogleInfo = do infos' <- getPkgInfos
-                    let infos = removeSmallVersions $ concat $ map snd infos'
-                    return $ find (\m -> (pkgName (sourcePackageId m)) == PackageName "hoogle") infos
+findHoogleInfo :: Maybe FilePath -> IO (Maybe InstalledPackageInfo)
+findHoogleInfo msandbox = do 
+  infos' <- getPkgInfos msandbox
+  let infos = removeSmallVersions $ concat $ map snd infos'
+  return $ find (\m -> (pkgName (sourcePackageId m)) == PackageName "hoogle") infos
 
 removeSmallVersions :: [InstalledPackageInfo] -> [InstalledPackageInfo]
 removeSmallVersions pids = filter
