@@ -211,7 +211,7 @@ createTempDirectory dir template = do
       r <- Exc.try $ mkPrivateDir dirpath
       case r of
         Right _ -> return dirpath
-        Left  (e::Exc.IOException) | Exc.AlreadyExists == (Exc.ioe_type e) -> findTempName (x+1)
+        Left  (e::Exc.IOException) | Exc.AlreadyExists == Exc.ioe_type e -> findTempName (x+1)
                 | otherwise              -> ioError e
 
 mkPrivateDir :: String -> IO ()

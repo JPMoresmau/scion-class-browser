@@ -81,20 +81,20 @@ moduled p = try (do mname <- try conid `sepBy` char '.'
                     return (name, rest))
 
 hooglePackageName :: BSParser String
-hooglePackageName = do string "package"
-                       spaces1
-                       name <- restOfLine
-                       spaces0
-                       return name
+hooglePackageName = string "package" >> restIsName
 
 -- | handle a keyword. For example searching for 'id' gives 'keyword hiding' in the results
 hoogleKeyword :: BSParser String
-hoogleKeyword = do string "keyword"
-                   spaces1
-                   name <- restOfLine
-                   spaces0
-                   return name
+hoogleKeyword = string "keyword" >> restIsName
 
+-- | Rest of the line is a name
+restIsName :: BSParser String
+restIsName = do 
+  spaces1
+  name <- restOfLine
+  spaces0
+  return name
+                   
 convertHalfToResult :: HalfResult -> SQL (Maybe Result)
 convertHalfToResult (HalfKeyword kw) =
   return $ Just (RKeyword kw)

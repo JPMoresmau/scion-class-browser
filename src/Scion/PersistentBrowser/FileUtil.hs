@@ -20,7 +20,7 @@ filterDots = filter (\d -> d /= "." && d /= "..")
 
 -- |Downloads a file from the internet.
 downloadFileLazy :: String -> IO LBS.ByteString
-downloadFileLazy url = simpleHttp url
+downloadFileLazy = simpleHttp
 
 -- |Downloads a file from the internet.
 downloadFileStrict :: String -> IO SBS.ByteString

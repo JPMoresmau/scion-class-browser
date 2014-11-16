@@ -89,15 +89,14 @@ type BrowserM = StateT BrowserState IO
 executeCommand :: Command -> BrowserM (Value, Bool)  -- Bool indicates if continue receiving commands
 executeCommand (LoadLocalDatabase path rebuild msandbox) =
   do fileExists <- lift $ doesFileExist path
-     let fileExists' = fileExists `seq` fileExists
      when rebuild $
           lift $ do runResourceT $ runLogging $ withSqliteConn (T.pack path) $ runSqlConn $ do
                          runMigration migrateAll
                          createIndexes
                     pkgInfos' <- getPkgInfos msandbox
-                    let pkgInfos = concat $ map snd pkgInfos'
+                    let pkgInfos = concatMap snd pkgInfos'
                     updateDatabase path pkgInfos
-     if fileExists' || rebuild -- If the file already existed or was rebuilt
+     if fileExists || rebuild -- If the file already existed or was rebuilt
         then do modify (\s -> s { localDb = Just path })
                 lift $ logToStdout "Local database loaded"
         else modify (\s -> s { localDb = Nothing })

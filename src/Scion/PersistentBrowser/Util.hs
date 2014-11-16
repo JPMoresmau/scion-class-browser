@@ -58,6 +58,6 @@ logToStdout msg = hPutStrLn stderr msg >> hFlush stderr
 
 escapeSql :: String -> String
 escapeSql []        = ""
-escapeSql ('\'':cs) = '\'':'\'':(escapeSql cs)
-escapeSql (c:cs)    = c:(escapeSql cs)
+escapeSql ('\'':cs) = '\'':'\'' : escapeSql cs
+escapeSql (c:cs)    = c : escapeSql cs
 

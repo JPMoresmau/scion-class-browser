@@ -139,7 +139,7 @@ fromDbToPackageIdentifier :: DbPackage -> PackageIdentifier
 fromDbToPackageIdentifier (DbPackage name version _) = PackageIdentifier (PackageName name)
                                                                          (getVersion version)
 getVersion :: String -> Version
-getVersion version = (fst . last . readP_to_S parseVersion) version
+getVersion = fst . last . readP_to_S parseVersion
 
 removeSmallVersions :: [PackageIdentifier] -> [PackageIdentifier]
 removeSmallVersions pids = filter

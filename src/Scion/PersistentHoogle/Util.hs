@@ -23,7 +23,7 @@ findHoogleBinPath msandbox extraPath = do
   p3 <- getHoogleBinPathCabalAPI
   p4 <- getHoogleBinPathCabalDir
   p5 <- getHoogleBinPathMacOsDir
-  let placesToSearch = (catMaybes [extraPath, p1, p2]) ++ [p4, p5] ++ p3
+  let placesToSearch = catMaybes [extraPath, p1, p2] ++ [p4, p5] ++ p3
   findPathsAndCheck placesToSearch
 
 findPathsAndCheck :: [FilePath] -> IO (Maybe String)
@@ -36,9 +36,9 @@ findPathsAndCheck (f:fs) = do r <- findPathAndCheck f
 findPathAndCheck :: FilePath -> IO (Maybe String)
 findPathAndCheck path = do 
   exists <- doesFileExist path
-  if exists
-     then return (Just path)
-     else return Nothing
+  return $ if exists
+     then Just path
+     else Nothing
 
 findHoogleBinInLibrary :: Maybe FilePath -> (String -> String) -> IO (Maybe String)
 findHoogleBinInLibrary msandbox f = do 
@@ -51,8 +51,8 @@ findHoogleBinInLibrary msandbox f = do
 findHoogleInfo :: Maybe FilePath -> IO (Maybe InstalledPackageInfo)
 findHoogleInfo msandbox = do 
   infos' <- getPkgInfos msandbox
-  let infos = removeSmallVersions $ concat $ map snd infos'
-  return $ find (\m -> (pkgName (sourcePackageId m)) == PackageName "hoogle") infos
+  let infos = removeSmallVersions $ concatMap snd infos'
+  return $ find (\m -> pkgName (sourcePackageId m) == PackageName "hoogle") infos
 
 removeSmallVersions :: [InstalledPackageInfo] -> [InstalledPackageInfo]
 removeSmallVersions pids = filter
@@ -64,11 +64,11 @@ removeSmallVersions pids = filter
 
 getHoogleBinPath1 :: String -> String
 getHoogleBinPath1 path = let (_:(_:(_:rest))) = reverse $ splitDirectories path
-                         in  (joinPath $ reverse ("bin":rest)) </> "hoogle" <.> exeExtension
+                         in  joinPath (reverse ("bin" : rest)) </> "hoogle" <.> exeExtension
 
 getHoogleBinPath2 :: String -> String
 getHoogleBinPath2 path = let (_:(_:rest)) = reverse $ splitDirectories path
-                         in  (joinPath $ reverse ("bin":rest)) </> "hoogle" <.> exeExtension
+                         in  joinPath (reverse ("bin" : rest)) </> "hoogle" <.> exeExtension
 
 getHoogleBinPathCabalAPI :: IO [String]
 getHoogleBinPathCabalAPI = do

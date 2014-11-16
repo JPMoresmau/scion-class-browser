@@ -2,7 +2,7 @@
 --  But MissingH does not build in 7.2.1 yet, so I included them here.
 module Scion.PersistentBrowser.FromMissingH where
 
-import Data.List (intersperse, isPrefixOf)
+import Data.List (isPrefixOf, intercalate)
 
 -- From Data.List.Utils
 
@@ -14,7 +14,7 @@ addToAL l key value = (key, value) : delFromAL l key
 {- | Removes all (key, value) pairs from the given list where the key
 matches the given one. -}
 delFromAL :: Eq key => [(key, a)] -> key -> [(key, a)]
-delFromAL l key = filter (\a -> (fst a) /= key) l
+delFromAL l key = filter (\a -> fst a /= key) l
 
 
 -- From Data.String.Utils
@@ -67,7 +67,7 @@ split delim str =
         firstline : case remainder of
                                    [] -> []
                                    x -> if x == delim
-                                        then [] : []
+                                        then [[]]
                                         else split delim 
                                                  (drop (length delim) x)
 
@@ -84,15 +84,5 @@ This could logically be thought of as:
 -}
 
 replace :: Eq a => [a] -> [a] -> [a] -> [a]
-replace old new l = join new . split old $ l
-
-{- | Given a delimiter and a list of items (or strings), join the items
-by using the delimiter.
-
-Example:
-
-> join "|" ["foo", "bar", "baz"] -> "foo|bar|baz"
--}
-join :: [a] -> [[a]] -> [a]
-join delim l = concat (intersperse delim l)
+replace old new l = intercalate new . split old $ l
 

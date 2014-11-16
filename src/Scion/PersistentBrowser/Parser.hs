@@ -41,13 +41,16 @@ parseHoogleString name contents = runP hoogleParser () name (BSU.toString conten
 --   the documentation of the entire package, or the corresponding
 --   error during the parsing.
 parseHoogleFile :: FilePath -> IO (Either ParseError (Documented Package))
-parseHoogleFile fname = (withFile fname ReadMode $
-                           \hnd -> do c <- BS.hGetContents hnd
-                                      return $ parseHoogleString fname c
-                        )
-                        `catchIOError`
-                        (\_ -> return $ Left (newErrorMessage (Message "error reading file")
-                                                              (newPos fname 0 0)))
+parseHoogleFile fname = withFile fname ReadMode
+  (\ hnd ->
+     do c <- BS.hGetContents hnd
+        return $ parseHoogleString fname c)
+  `catchIOError`
+  (\ _ ->
+     return $
+       Left
+         (newErrorMessage (Message "error reading file")
+            (newPos fname 0 0)))
 
 -- | Parses a entire directory of Hoogle documentation files
 --   which must be following the format of the Hackage
@@ -66,11 +69,11 @@ parseDirectory dir tmpdir =
      vDirs <- mapM getVersionDirectory dirs
      let innerDirs = map (\d -> d </> "doc" </> "html") (concat vDirs)
      -- Parse directories recursively
-     let toExecute = map (\innerDir -> parseDirectoryFiles innerDir tmpdir) innerDirs
+     let toExecute = map (`parseDirectoryFiles` tmpdir) innerDirs
      eitherDPackages <- withThreaded $ \pool -> parallelInterleavedE pool toExecute
      let dPackages = rights eitherDPackages
-         dbs       = concat $ map fst dPackages
-         errors    = concat $ map snd dPackages
+         dbs       = concatMap fst dPackages
+         errors    = concatMap snd dPackages
      return (dbs, errors)
 
 getVersionDirectory :: FilePath -> IO [FilePath]

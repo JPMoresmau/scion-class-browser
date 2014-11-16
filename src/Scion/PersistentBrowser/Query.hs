@@ -127,9 +127,9 @@ getDeclsInModule modName pkgId =
                   Nothing -> [modName]
                   Just (DbPackageIdentifier pkgName pkgVersion) -> [modName, pkgName, pkgVersion]
      elts <- queryDb sql args action
-     completeElts <- mapM (\(dclId, dcl, p) -> do dclAll <- getAllDeclInfo (dclId, dcl)
-                                                  return (p, dclAll)) elts
-     return completeElts
+     mapM (\(dclId, dcl, p) -> do 
+      dclAll <- getAllDeclInfo (dclId, dcl)
+      return (p, dclAll)) elts
   where action :: [PersistValue] -> (DbDeclId, DbDecl, DbPackageIdentifier)
         action [declId@(PersistInt64 _), PersistText declType, PersistText name
                , doc, kind, signature, equals, modId@(PersistInt64 _)
@@ -154,18 +154,18 @@ getDeclsFromPrefix prefix pkgId =
                ++ " FROM DbDecl, DbModule, DbPackage"
                ++ " WHERE DbDecl.moduleId = DbModule.id AND DbModule.packageId = DbPackage.id"
                
-               ++ (if null prefix then "" else (" AND (DbDecl.name LIKE '"
+               ++ (if null prefix then "" else " AND (DbDecl.name LIKE '"
                ++ prefix ++ "%' or DbDecl.id in (select DbConstructor.declId from DbConstructor where DbConstructor.name LIKE '"
-               ++ prefix ++ "%'))"))
+               ++ prefix ++ "%'))")
                ++ pkg
      let args = case pkgId of
                   Nothing -> []
                   Just (DbPackageIdentifier pkgName pkgVersion) -> [pkgName, pkgVersion]
      elts <- queryDb sql args action
-     completeElts <- mapM (\(dclId, dcl, p,m) -> do cs <- consts dclId
-                                                    let dclAll=DbCompleteDecl dcl [] [] [] cs
-                                                    return (p,m, dclAll)) elts
-     return completeElts
+     mapM (\(dclId, dcl, p,m) -> do 
+      cs <- consts dclId
+      let dclAll=DbCompleteDecl dcl [] [] [] cs
+      return (p,m, dclAll)) elts
   where action :: [PersistValue] -> (DbDeclId, DbDecl, DbPackageIdentifier, DbModule)
         action [declId@(PersistInt64 _), PersistText declType, PersistText name
                , doc, kind, signature, equals, modId@(PersistInt64 _)
