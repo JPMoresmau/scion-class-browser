@@ -34,6 +34,7 @@ import Text.ParserCombinators.Parsec.Pos (newPos)
 import Text.ParserCombinators.ReadP
 import Control.Monad (unless)
 import Control.Monad.Trans.Resource (runResourceT)
+import Network.HTTP.Conduit
 
 import qualified Data.ByteString as BS
 
@@ -82,7 +83,7 @@ createHackageDatabase tmp =
      -- Parse Hoogle database
      createDirectoryIfMissing True hoogleDbDir
      logToStdout "Started downloading Hoogle database"
-     Just hoogleDownloaded <- downloadFileLazy hoogleDbUrl
+     hoogleDownloaded <- downloadFileLazy hoogleDbUrl
      logToStdout "Uncompressing Hoogle database"
      unTarGzip hoogleDownloaded hoogleDbDir
      logToStdout $ "Hoogle database is now in " ++ hoogleDbDir
@@ -155,16 +156,17 @@ createCabalDatabase ghcVersion hoogleDir pkgs = createCabalDatabase' ghcVersion 
 --   it is converted into an empty package with a note.
 createCabalDatabase' :: Version -> FilePath -> [PackageIdentifier] -> Bool -> IO ([Documented Package], [(String, ParseError)])
 createCabalDatabase' ghcVersion hoogleDir pkgs ifFailCreateEmpty =
-  withTemporaryDirectory $ \tmp ->
-    do 
-       let toExecute = map (\pid -> do 
-                                       db <- getCabalHoogle ghcVersion hoogleDir pid ifFailCreateEmpty tmp
-                                       return (pkgString pid, db))
-                           pkgs
-       eitherHooglePkgs <- withThreaded $ \pool -> parallelInterleavedE pool toExecute
-       let hooglePkgs = rights eitherHooglePkgs
-           (db, errors) = partitionPackages hooglePkgs
-       return (db, errors)
+  withTemporaryDirectory $ \tmp -> 
+    withManager $ \mgr ->
+      do 
+         let toExecute = map (\pid -> do 
+                                         db <- getCabalHoogle ghcVersion hoogleDir pid ifFailCreateEmpty tmp mgr
+                                         return (pkgString pid, db))
+                             pkgs
+         eitherHooglePkgs <- liftIO $ withThreaded $ \pool -> parallelInterleavedE pool toExecute
+         let hooglePkgs = rights eitherHooglePkgs
+             (db, errors) = partitionPackages hooglePkgs
+         return (db, errors)
        -- commented out for now (see https://github.com/haskell/HTTP/pull/26)
 --       pr<-fetchProxy False
        -- download everything in one browser session
@@ -184,9 +186,9 @@ createCabalDatabase' ghcVersion hoogleDir pkgs ifFailCreateEmpty =
 -- no liftIO but ioAction  $
 
 -- | Get the database from a Cabal package.
-getCabalHoogle :: Version -> FilePath -> PackageIdentifier -> Bool -> FilePath ->  IO(Either ParseError (Documented Package))
-getCabalHoogle ghcVersion hoogleDir pid ifFailCreateEmpty tmp = do
-        result <- getCabalHoogle' ghcVersion hoogleDir pid tmp
+getCabalHoogle :: Version -> FilePath -> PackageIdentifier -> Bool -> FilePath -> Manager -> IO(Either ParseError (Documented Package))
+getCabalHoogle ghcVersion hoogleDir pid ifFailCreateEmpty tmp mgr = do
+        result <- getCabalHoogle' ghcVersion hoogleDir pid tmp mgr
         case result of
          Left e                     -> return $ failure e
          Right (Package doc _ info) -> return $ Right (Package doc pid info)
@@ -198,16 +200,16 @@ getCabalHoogle ghcVersion hoogleDir pid ifFailCreateEmpty tmp = do
                        else Left e
 
 -- | Get the database from a Cabal package.
-getCabalHoogle' :: Version -> FilePath -> PackageIdentifier -> FilePath -> IO (Either ParseError (Documented Package))
-getCabalHoogle' ghcVersion hoogleDir pid tmp = do 
+getCabalHoogle' :: Version -> FilePath -> PackageIdentifier -> FilePath -> Manager -> IO (Either ParseError (Documented Package))
+getCabalHoogle' ghcVersion hoogleDir pid tmp mgr = do 
   let downUrl1 = getPackageUrlHackage pid
   let pkgV = pkgString pid
   logToStdout $ "Download " ++ downUrl1
-  tryDownload1 <- downloadHoogleFile downUrl1
+  tryDownload1 <- downloadHoogleFile mgr downUrl1
   case tryDownload1 of
     Nothing   -> do let downUrl2 = getPackageUrlGhcLibs ghcVersion pid
                     logToStdout $ "Download " ++ downUrl2
-                    tryDownload2 <- downloadHoogleFile downUrl2
+                    tryDownload2 <- downloadHoogleFile mgr downUrl2
                     case tryDownload2 of
                       Nothing   -> getCabalHoogleLocal hoogleDir pid tmp
                       Just cnts -> do

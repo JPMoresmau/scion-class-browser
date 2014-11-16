@@ -1,22 +1,17 @@
-{-# LANGUAGE ScopedTypeVariables, ForeignFunctionInterface #-}
+{-# LANGUAGE ScopedTypeVariables,OverloadedStrings #-}
 
 module Scion.PersistentBrowser.FileUtil where
 
+import Control.Applicative
 import qualified Codec.Archive.Tar as Tar
 import qualified Codec.Compression.GZip as GZip
 import Control.Exception (bracket)
 import qualified Data.ByteString as SBS
-import qualified Data.ByteString.Char8 as SBS8
 import qualified Data.ByteString.Lazy as LBS
-import qualified Data.ByteString.Lazy.Char8 as LBS8
-import Data.List (isPrefixOf)
-import Network.Browser
-import Network.HTTP
-import Network.HTTP.Proxy
 import System.Directory
 import System.FilePath
 import Scion.PersistentBrowser.TempFile
-import Scion.PersistentBrowser.Util (logToStdout)
+import Network.HTTP.Conduit
 
 -- |Takes out the "." and ".." special directory
 -- entries from a list of file paths.
@@ -24,43 +19,42 @@ filterDots :: [FilePath] -> [FilePath]
 filterDots = filter (\d -> d /= "." && d /= "..")
 
 -- |Downloads a file from the internet.
-downloadFileLazy :: String -> IO (Maybe LBS.ByteString)
-downloadFileLazy url = do 
-                        response <- fetchURL url
-                        return $ Just (LBS8.pack response)
+downloadFileLazy :: String -> IO LBS.ByteString
+downloadFileLazy url = simpleHttp url
 
 -- |Downloads a file from the internet.
-downloadFileStrict :: String -> IO (Maybe SBS.ByteString)
-downloadFileStrict url = do 
-                        response <- fetchURL url
-                        return $ Just (SBS8.pack response)
+downloadFileStrict :: String -> IO SBS.ByteString
+downloadFileStrict = (LBS.toStrict <$>) . downloadFileLazy
+                        
 
 -- |Downloads a file from the internet and check it's a Hoogle file.
-downloadHoogleFile :: String -> IO (Maybe SBS.ByteString)
-downloadHoogleFile url = do 
-                            response <- fetchURL url
-                            return $ getHoogleFile response
+downloadHoogleFile :: Manager -> String -> IO (Maybe SBS.ByteString)
+downloadHoogleFile mgr url = do
+  req <- parseUrl url
+  getHoogleFile <$> LBS.toStrict <$> responseBody <$> httpLbs req mgr
+  
 
-downloadHoogleFile' :: String -> BrowserAction (HandleStream String) (Maybe SBS.ByteString)
-downloadHoogleFile' url = do 
-                            (_,res) <- request $ getRequest url
-                            return $ getHoogleFile $ rspBody res
 
-getHoogleFile :: String -> Maybe SBS.ByteString
-getHoogleFile response=if "-- Hoogle documentation" `isPrefixOf` response
-                                               then Just (SBS8.pack response)
+--downloadHoogleFile' :: String -> BrowserAction (HandleStream String) (Maybe SBS.ByteString)
+--downloadHoogleFile' url = do 
+--                            (_,res) <- request $ getRequest url
+--                            return $ getHoogleFile $ rspBody res
+
+getHoogleFile :: SBS.ByteString -> Maybe SBS.ByteString
+getHoogleFile response=if "-- Hoogle documentation" `SBS.isPrefixOf` response
+                                               then Just  response
                                                else Nothing
 
 -- |Downloads a file from the internet, using the system proxy
-fetchURL :: String -> IO (String)
-fetchURL url=do
-            pr<-fetchProxy False
-            (_,res) <- browse $ do 
-                setErrHandler logToStdout
-                setOutHandler logToStdout
-                setProxy pr 
-                request $ getRequest url
-            return $ rspBody res
+--fetchURL :: String -> IO (String)
+--fetchURL url=do
+--            pr<-fetchProxy False
+--            (_,res) <- browse $ do 
+--                setErrHandler logToStdout
+--                setOutHandler logToStdout
+--                setProxy pr 
+--                request $ getRequest url
+--            return $ rspBody res
                             
 -- |Un-gzip and un-tar a file into a folder.
 unTarGzip :: LBS.ByteString -> FilePath -> IO ()

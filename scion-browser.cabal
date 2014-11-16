@@ -1,11 +1,11 @@
 name:           scion-browser
-version:        0.3.5
+version:        0.4.0
 cabal-version:  >= 1.8
 build-type:     Simple
 license:        BSD3
 license-file:   docs/LICENSE
-author:         Alejandro Serrano <trupill@gmail.com>
-maintainer:     Alejandro Serrano <trupill@gmail.com>, JP Moresmau (jpmoresmau@gmail.com)
+author:         Alejandro Serrano <trupill@gmail.com>, JP Moresmau <jpmoresmau@gmail.com>
+maintainer:     JP Moresmau (jpmoresmau@gmail.com)
 homepage:       http://github.com/JPMoresmau/scion-class-browser
 category:       Development
 synopsis:       Command-line interface for browsing and searching packages documentation
@@ -29,7 +29,6 @@ library
     process >= 1 && < 2,
     tar >= 0.3 && < 0.5,
     zlib == 0.5.*,
-    HTTP >= 4000 && < 5000,
     deepseq >= 1.1 && < 2,
     aeson >=0.4 && <0.8,
     parallel-io >= 0.3,
@@ -44,7 +43,8 @@ library
     zlib,
     ghc-paths == 0.1.*,
     monad-logger >= 0.3,
-    ghc-pkg-lib
+    ghc-pkg-lib,
+    http-conduit >= 2.0
   
   if !os(mingw32)
     build-depends:
@@ -125,7 +125,8 @@ executable scion-browser
     ghc-paths == 0.1.*,
     monad-logger >= 0.3,
     vector,
-    ghc-pkg-lib
+    ghc-pkg-lib,
+    http-conduit >= 2.0
   
   if !os(mingw32)
     build-depends:
