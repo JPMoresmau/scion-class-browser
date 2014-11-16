@@ -14,7 +14,7 @@ import Scion.PersistentBrowser
 import Scion.PersistentBrowser.Build
 --import Scion.PersistentBrowser.DbTypes
 import Scion.PersistentBrowser.Query
-import Scion.PersistentBrowser.Util (logToStdout)
+import Scion.PersistentBrowser.Util (logToStdout,getHoogleDir)
 import qualified Scion.PersistentHoogle as H
 import Language.Haskell.Packages
 import System.Directory
@@ -28,9 +28,10 @@ data Command = LoadLocalDatabase FilePath Bool (Maybe FilePath)
              | GetPackages CurrentDatabase
              | GetModules CurrentDatabase String
              | GetDeclarations CurrentDatabase String 
-             | HoogleQuery CurrentDatabase String (Maybe FilePath)
-             | HoogleDownloadData (Maybe FilePath)
-             | HoogleCheckDatabase (Maybe FilePath)
+             | HoogleQuery FilePath CurrentDatabase String (Maybe FilePath)
+             | HoogleDownloadData FilePath (Maybe FilePath)
+             | HoogleCheckDatabase FilePath (Maybe FilePath)
+             | HoogleInitDatabase FilePath Bool (Maybe FilePath)
              | GetDeclarationModules CurrentDatabase String
              | SetExtraHooglePath String
              | GetDeclarationsFromPrefix CurrentDatabase String 
@@ -103,15 +104,14 @@ executeCommand (LoadLocalDatabase path rebuild msandbox) =
      return (ok, True)   
 executeCommand (LoadHackageDatabase path rebuild) =
   do fileExists <- lift $ doesFileExist path
-     let fileExists' = fileExists `seq` fileExists
-     when (not fileExists' || rebuild) $
-          lift $ do when fileExists' (removeFile path)
+     when (not fileExists || rebuild) $
+          lift $ do when fileExists (removeFile path)
                     logToStdout "Rebuilding Hackage database"
                     runResourceT $ runLogging $ withSqliteConn (T.pack path) $ runSqlConn $ do
                         runMigration migrateAll
                         createIndexes
                     saveHackageDatabase path
-     if fileExists' || rebuild -- If the file already existed or was rebuilt
+     if fileExists || rebuild -- If the file already existed or was rebuilt
         then do modify (\s -> s { hackageDb = Just path })
                 lift $ logToStdout "Hackage database loaded"
         else modify (\s -> s { hackageDb = Nothing })
@@ -127,17 +127,24 @@ executeCommand (GetDeclarations cdb mname) =
 executeCommand (GetDeclarationsFromPrefix cdb prefix) = 
                                            do decls <- runDb cdb (getDeclsFromPrefix prefix)
                                               return (nubJSON decls, True)
-executeCommand (HoogleQuery cdb query msandbox)       = 
-                                           do extraH <- fmap extraHooglePath get
-                                              results <- runDb cdb (\_ -> H.query msandbox extraH query)
-                                              return (nubJSON results, True)
-executeCommand (HoogleDownloadData msandbox)        = do 
+executeCommand (HoogleQuery path cdb query msandbox)       = do
+  hoogleDir <- liftIO $ getHoogleDir path
   extraH <- fmap extraHooglePath get
-  ret <- lift $ H.downloadData msandbox extraH
+  results <- runDb cdb (\_ -> H.query hoogleDir msandbox extraH query)
+  return (nubJSON results, True)
+executeCommand (HoogleDownloadData path msandbox)        = do 
+  hoogleDir <- liftIO $ getHoogleDir path
+  extraH <- fmap extraHooglePath get
+  ret <- lift $ H.downloadData hoogleDir msandbox extraH
   return (String $ T.pack $ show ret, True)
-executeCommand (HoogleCheckDatabase msandbox) = do 
+executeCommand (HoogleCheckDatabase path msandbox) = do 
+  hoogleDir <- liftIO $ getHoogleDir path
   extraH <- fmap extraHooglePath get
-  ret <- lift $ H.checkDatabase msandbox extraH
+  ret <- lift $ H.checkDatabase hoogleDir msandbox extraH
+  return (String $ T.pack $ show ret, True)
+executeCommand (HoogleInitDatabase path addToDB msandbox) = do 
+  extraH <- fmap extraHooglePath get
+  ret <- lift $ H.initDatabase path msandbox extraH addToDB
   return (String $ T.pack $ show ret, True)
 executeCommand (SetExtraHooglePath p)    = do modify (\s -> s { extraHooglePath = Just p })
                                               return (ok, True)
@@ -168,11 +175,18 @@ instance FromJSON Command where
                                                                 <*> v .: "module"
                                "get-decl-prefix"   -> GetDeclarationsFromPrefix <$>v .: "db"
                                                                 <*> v .: "prefix" 
-                               "hoogle-query"      -> HoogleQuery <$> v .: "db"
-                                                                <*> v .: "query"
-                                                                <*> v .:? "sandbox"
-                               "hoogle-data"       -> HoogleDownloadData <$> v .:? "sandbox"
-                               "hoogle-check"      -> HoogleCheckDatabase <$> v .:? "sandbox"
+                               "hoogle-query"      -> HoogleQuery <$> v .: "filepath"
+                                                                  <*> v .: "db"
+                                                                  <*> v .: "query"
+                                                                  <*> v .:? "sandbox"
+                               "hoogle-data"       -> HoogleDownloadData <$> v .: "filepath"
+                                                                        <*> v .:? "sandbox"
+                               "hoogle-check"      -> HoogleCheckDatabase <$> v .: "filepath"
+                                                                        <*> v .:? "sandbox"
+                               "hoogle-init"       -> HoogleInitDatabase <$> v .: "filepath"
+                                                                        <*> v .:? "addToDB" .!= False
+                                                                        <*> v .:? "sandbox"   
+                                                                                                          
                                "extra-hoogle-path" -> SetExtraHooglePath <$> v .: "path"
                                "get-decl-module"   -> GetDeclarationModules <$> v .: "db"
                                                                 <*> v .: "decl"

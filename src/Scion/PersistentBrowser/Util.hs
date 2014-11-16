@@ -8,6 +8,15 @@ import System.IO (hPutStrLn, hFlush, stderr)
 import System.Process
 import Text.Parsec.Error (ParseError)
 import GHC.Conc (numCapabilities)
+import System.FilePath
+import System.Directory
+
+-- | Get the Hoogle dir from the db file
+getHoogleDir :: FilePath -> IO FilePath
+getHoogleDir file = do
+  let hoogleDir = takeDirectory file </> "hoogle"
+  createDirectoryIfMissing True hoogleDir
+  return hoogleDir
 
 withThreaded :: (Pool -> IO a) -> IO a
 withThreaded = withPool numCapabilities
