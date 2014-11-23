@@ -1,5 +1,5 @@
 name:           scion-browser
-version:        0.4.0
+version:        0.4.1
 cabal-version:  >= 1.8
 build-type:     Simple
 license:        BSD3
@@ -30,7 +30,7 @@ library
     tar >= 0.3 && < 0.5,
     zlib == 0.5.*,
     deepseq >= 1.1 && < 2,
-    aeson >=0.4 && <0.8,
+    aeson >=0.4 && <0.9,
     parallel-io >= 0.3,
     utf8-string,
     persistent >= 1.2 && < 2,
@@ -111,7 +111,7 @@ executable scion-browser
     zlib == 0.5.*,
     HTTP >= 4000 && < 5000,
     deepseq >= 1.1 && < 2,
-    aeson >= 0.4,
+    aeson >=0.4 && <0.9,
     parallel-io >= 0.3,
     utf8-string,
     persistent >= 1.2 && <2,
