@@ -35,7 +35,8 @@ query hoogleDir msandbox p q = do
   mpath <- liftIO $ findHoogleBinPath msandbox p
   case mpath of
    Nothing   -> return []
-   Just path -> do (exitCode, output, err) <- liftIO $ readProcessWithExitCode path ["search", q,"-d",hoogleDir] ""
+   Just path -> do -- use explicit search argument in case the search is itself a command, like 'data'
+                   (exitCode, output, err) <- liftIO $ readProcessWithExitCode path ["search", q,"-d",hoogleDir] ""
                    case exitCode of
                      ExitSuccess -> do 
                                        liftIO $ logToStdout q
