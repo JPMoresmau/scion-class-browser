@@ -85,7 +85,9 @@ instance Named Decl where
   getName (TypeDecl _ (DHead _ name) _)          = getNameString name
   getName (TypeDecl a (DHApp _ h _) b)           = getName $ TypeDecl a h b
   getName (GDataDecl _ _ _ (DHead _ name) _ _ _) = getNameString name
+  getName (GDataDecl a b c (DHApp _ h _) d e f)  = getName $ GDataDecl a b c h d e f
   getName (ClassDecl _ _ (DHead _ name) _ _)     = getNameString name
+  getName (ClassDecl a b (DHApp _ h _) c d)      = getName $ ClassDecl a b h c d
   getName (InstDecl _ _ (IRule _ _ _ (IHCon _ name )) _)        = getQNameString name
 #else  
   getName (TypeDecl _ (DHead _ name _) _)          = getNameString name
