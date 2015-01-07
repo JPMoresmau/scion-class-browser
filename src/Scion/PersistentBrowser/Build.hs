@@ -112,9 +112,9 @@ runSQL :: FilePath -> SQL a -> IO a
 runSQL file f= runResourceT $ runLogging $ withSqliteConn (T.pack file) $ runSqlConn f
 
 -- | Updates a database with changes in the installed package base.
-updateDatabase :: FilePath -> [InstalledPackageInfo] -> IO ()
-updateDatabase file pkgInfo = do
-  hoogleDir <- getHoogleDir file
+updateDatabase :: FilePath -> Maybe FilePath -> [InstalledPackageInfo] -> IO ()
+updateDatabase file msandbox pkgInfo = do
+  hoogleDir <- getHoogleDir file msandbox
   runSQL file $ updateDatabase' hoogleDir pkgInfo
 -- runStderrLoggingT $
 

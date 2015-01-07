@@ -31,7 +31,8 @@ import Scion.PersistentBrowser.ToDb (savePackageToDb, deletePackageByInfo)
 import Scion.PersistentBrowser.FileUtil (withWorkingDirectory)
 
 query :: FilePath -> Maybe FilePath -> Maybe FilePath -> String -> SQL [Result]
-query hoogleDir msandbox p q = do 
+query localDB msandbox p q = do 
+  hoogleDir <- liftIO $ getHoogleDir localDB msandbox
   mpath <- liftIO $ findHoogleBinPath msandbox p
   case mpath of
    Nothing   -> return []
@@ -51,7 +52,8 @@ query hoogleDir msandbox p q = do
                                        return []
 
 downloadData :: FilePath -> Maybe FilePath -> Maybe FilePath -> IO HoogleStatus
-downloadData hoogleDir msandbox p = do 
+downloadData localDB msandbox p = do 
+  hoogleDir <- getHoogleDir localDB msandbox
   mpath <- findHoogleBinPath msandbox p
   case mpath of
     Nothing   -> return Missing
@@ -65,7 +67,8 @@ downloadData hoogleDir msandbox p = do
                       _-> Error
 
 checkDatabase :: FilePath -> Maybe FilePath -> Maybe FilePath -> IO HoogleStatus
-checkDatabase hoogleDir msandbox p = do 
+checkDatabase localDB msandbox p = do 
+   hoogleDir <- getHoogleDir localDB msandbox
    mpath <- findHoogleBinPath msandbox p
    case mpath of
      Nothing   -> return Missing
@@ -80,7 +83,7 @@ checkDatabase hoogleDir msandbox p = do
 -- | Init hoogle DB, adding extra files
 initDatabase :: FilePath -> Maybe FilePath -> Maybe FilePath -> Bool-> IO HoogleStatus
 initDatabase localDB msandbox p addToDb = do 
-   hoogleDir <- getHoogleDir localDB
+   hoogleDir <- getHoogleDir localDB msandbox
    mpath <- findHoogleBinPath msandbox p
    case mpath of
      Nothing   -> return Missing

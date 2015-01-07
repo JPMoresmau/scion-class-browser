@@ -95,7 +95,7 @@ executeCommand (LoadLocalDatabase path rebuild msandbox) =
                          createIndexes
                     pkgInfos' <- getPkgInfos msandbox
                     let pkgInfos = concatMap snd pkgInfos'
-                    updateDatabase path pkgInfos
+                    updateDatabase path msandbox pkgInfos
      if fileExists || rebuild -- If the file already existed or was rebuilt
         then do modify (\s -> s { localDb = Just path })
                 lift $ logToStdout "Local database loaded"
@@ -127,19 +127,16 @@ executeCommand (GetDeclarationsFromPrefix cdb prefix) =
                                            do decls <- runDb cdb (getDeclsFromPrefix prefix)
                                               return (nubJSON decls, True)
 executeCommand (HoogleQuery path cdb query msandbox)       = do
-  hoogleDir <- liftIO $ getHoogleDir path
   extraH <- fmap extraHooglePath get
-  results <- runDb cdb (\_ -> H.query hoogleDir msandbox extraH query)
+  results <- runDb cdb (\_ -> H.query path msandbox extraH query)
   return (nubJSON results, True)
 executeCommand (HoogleDownloadData path msandbox)        = do 
-  hoogleDir <- liftIO $ getHoogleDir path
   extraH <- fmap extraHooglePath get
-  ret <- lift $ H.downloadData hoogleDir msandbox extraH
+  ret <- lift $ H.downloadData path msandbox extraH
   return (String $ T.pack $ show ret, True)
 executeCommand (HoogleCheckDatabase path msandbox) = do 
-  hoogleDir <- liftIO $ getHoogleDir path
   extraH <- fmap extraHooglePath get
-  ret <- lift $ H.checkDatabase hoogleDir msandbox extraH
+  ret <- lift $ H.checkDatabase path msandbox extraH
   return (String $ T.pack $ show ret, True)
 executeCommand (HoogleInitDatabase path addToDB msandbox) = do 
   extraH <- fmap extraHooglePath get

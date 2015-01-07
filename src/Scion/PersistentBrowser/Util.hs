@@ -12,8 +12,12 @@ import System.FilePath
 import System.Directory
 
 -- | Get the Hoogle dir from the db file
-getHoogleDir :: FilePath -> IO FilePath
-getHoogleDir file = do
+getHoogleDir :: FilePath -> Maybe FilePath -> IO FilePath
+getHoogleDir _ (Just fp) = do
+  let hoogleDir = takeDirectory fp </> "hoogle"
+  createDirectoryIfMissing True hoogleDir
+  return hoogleDir
+getHoogleDir file Nothing = do
   let hoogleDir = takeDirectory file </> "hoogle"
   createDirectoryIfMissing True hoogleDir
   return hoogleDir
