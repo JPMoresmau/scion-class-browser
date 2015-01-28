@@ -5,7 +5,7 @@ module Scion.PersistentBrowser.FileUtil where
 import Control.Applicative
 import qualified Codec.Archive.Tar as Tar
 import qualified Codec.Compression.GZip as GZip
-import Control.Exception (bracket)
+import Control.Exception (bracket,catch,SomeException)
 import qualified Data.ByteString as SBS
 import qualified Data.ByteString.Lazy as LBS
 import System.Directory
@@ -19,12 +19,15 @@ filterDots :: [FilePath] -> [FilePath]
 filterDots = filter (\d -> d /= "." && d /= "..")
 
 -- |Downloads a file from the internet.
-downloadFileLazy :: String -> IO LBS.ByteString
-downloadFileLazy = simpleHttp
+downloadFileLazy :: String -> IO (Maybe LBS.ByteString)
+downloadFileLazy s = (Just <$> (simpleHttp s))
+  -- yes it's bad practice to catch them all, but I don't know what could be thrown here
+  -- StatusCodeException, yes, and maybe ASN1 exceptions, and probably others...
+  `catch` \(_ :: SomeException)->return Nothing
 
 -- |Downloads a file from the internet.
-downloadFileStrict :: String -> IO SBS.ByteString
-downloadFileStrict = (LBS.toStrict <$>) . downloadFileLazy
+downloadFileStrict :: String -> IO (Maybe SBS.ByteString)
+downloadFileStrict = (fmap LBS.toStrict <$>) . downloadFileLazy
                         
 
 -- |Downloads a file from the internet and check it's a Hoogle file.
@@ -32,6 +35,9 @@ downloadHoogleFile :: Manager -> String -> IO (Maybe SBS.ByteString)
 downloadHoogleFile mgr url = do
   req <- parseUrl url
   getHoogleFile <$> LBS.toStrict <$> responseBody <$> httpLbs req mgr
+  -- yes it's bad practice to catch them all, but I don't know what could be thrown here
+  -- StatusCodeException, yes, and maybe ASN1 exceptions, and probably others...
+  `catch` \(_ :: SomeException)->return Nothing
   
 
 

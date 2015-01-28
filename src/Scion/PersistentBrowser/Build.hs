@@ -83,12 +83,16 @@ createHackageDatabase tmp =
      -- Parse Hoogle database
      createDirectoryIfMissing True hoogleDbDir
      logToStdout "Started downloading Hoogle database"
-     hoogleDownloaded <- downloadFileLazy hoogleDbUrl
-     logToStdout "Uncompressing Hoogle database"
-     unTarGzip hoogleDownloaded hoogleDbDir
-     logToStdout $ "Hoogle database is now in " ++ hoogleDbDir
-     createDirectoryIfMissing True tmpDir
-     (pkgs, errors) <- parseDirectory hoogleDbDir tmpDir
+     mhoogleDownloaded <- downloadFileLazy hoogleDbUrl
+     case mhoogleDownloaded of
+      Just hoogleDownloaded -> do
+         logToStdout "Uncompressing Hoogle database"
+         unTarGzip hoogleDownloaded hoogleDbDir
+         logToStdout $ "Hoogle database is now in " ++ hoogleDbDir
+         createDirectoryIfMissing True tmpDir
+         (pkgs, errors) <- parseDirectory hoogleDbDir tmpDir
+         return (pkgs, errors)
+      Nothing -> return ([],[])
      --let (pkgs, errors) = ([], [])
      {-
      -- Parse base package
@@ -105,7 +109,7 @@ createHackageDatabase tmp =
                                 Left  e -> (dbBase, ("ghc.txt", e):errorsBase)
      return (pkgListToDb dbGhc, errorsGhc)
      -}
-     return (pkgs, errors)
+     
 
 -- | Run SQL on the given path
 runSQL :: FilePath -> SQL a -> IO a
