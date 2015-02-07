@@ -68,7 +68,7 @@ getSubmodules modName (Just (DbPackageIdentifier pkgName pkgVersion)) =
      queryDb sql [modName ++ ".%", pkgName, pkgVersion] moduleAction
 
 moduleAction :: [PersistValue] -> DbModule
-moduleAction [PersistText name, doc, pkgId@(PersistInt64 _)] = DbModule (T.unpack name) (fromDbText doc) (Key pkgId)
+moduleAction [PersistText name, doc, PersistInt64 pkgId] = DbModule (T.unpack name) (fromDbText doc) (DbPackageKey $ SqlBackendKey pkgId)
 moduleAction _ = error "This should not happen"
 
 -- |Get information about all declaration with that name.
@@ -88,10 +88,10 @@ declsByName name (Just (DbPackageIdentifier pkgName pkgVersion)) =
      queryDb sql [name, pkgName, pkgVersion] declAction
 
 declAction :: [PersistValue] -> DbDecl
-declAction [PersistText declType, PersistText name , doc, kind, signature, equals, modId@(PersistInt64 _)] =
+declAction [PersistText declType, PersistText name , doc, kind, signature, equals, PersistInt64 modId] =
   DbDecl (read (T.unpack declType)) (T.unpack name) (fromDbText doc)
          (fromDbText kind) (fromDbText signature) (fromDbText equals)
-         (Key modId)
+         (DbModuleKey $ SqlBackendKey modId)
 declAction _ = error "This should not happen"
 
 
@@ -131,13 +131,13 @@ getDeclsInModule modName pkgId =
       dclAll <- getAllDeclInfo (dclId, dcl)
       return (p, dclAll)) elts
   where action :: [PersistValue] -> (DbDeclId, DbDecl, DbPackageIdentifier)
-        action [declId@(PersistInt64 _), PersistText declType, PersistText name
-               , doc, kind, signature, equals, modId@(PersistInt64 _)
+        action [PersistInt64 declId, PersistText declType, PersistText name
+               , doc, kind, signature, equals, PersistInt64 modId
                , PersistText pkgName, PersistText pkgVersion] =
-                                                                ( Key declId
+                                                                ( DbDeclKey $ SqlBackendKey declId
                                                                 , DbDecl (read (T.unpack declType)) (T.unpack name) (fromDbText doc)
                                                                          (fromDbText kind) (fromDbText signature) (fromDbText equals)
-                                                                         (Key modId)
+                                                                         (DbModuleKey $ SqlBackendKey modId)
                                                                 , DbPackageIdentifier (T.unpack pkgName) (T.unpack pkgVersion)
                                                                 )
         action _ = error "This should not happen"
@@ -167,15 +167,15 @@ getDeclsFromPrefix prefix pkgId =
       let dclAll=DbCompleteDecl dcl [] [] [] cs
       return (p,m, dclAll)) elts
   where action :: [PersistValue] -> (DbDeclId, DbDecl, DbPackageIdentifier, DbModule)
-        action [declId@(PersistInt64 _), PersistText declType, PersistText name
-               , doc, kind, signature, equals, modId@(PersistInt64 _)
+        action [ PersistInt64 declId, PersistText declType, PersistText name
+               , doc, kind, signature, equals, PersistInt64 modId
                , PersistText modName, PersistText pkgName, PersistText pkgVersion] =
-                                                                ( Key declId
+                                                                ( DbDeclKey $ SqlBackendKey  declId
                                                                 , DbDecl (read (T.unpack declType)) (T.unpack name) (fromDbText doc)
                                                                          (fromDbText kind) (fromDbText signature) (fromDbText equals)
-                                                                         (Key modId)
+                                                                         (DbModuleKey $ SqlBackendKey modId)
                                                                 , DbPackageIdentifier (T.unpack pkgName) (T.unpack pkgVersion)
-                                                                , DbModule (T.unpack modName) Nothing (Key modId)
+                                                                , DbModule (T.unpack modName) Nothing (DbPackageKey $ SqlBackendKey modId)
                                                                 )
         action _ = error "This should not happen"
         consts declId=do
@@ -214,7 +214,7 @@ getModulesWhereDeclarationIs declName =
      cons <- queryDb sqlCons [declName] action
      return (decls ++ cons)
   where action :: [PersistValue] -> (DbModule,String,String)
-        action [PersistText name, doc, pkgId@(PersistInt64 _),PersistText decl,PersistText pkgName] = (DbModule (T.unpack name) (fromDbText doc) (Key pkgId),T.unpack decl,T.unpack pkgName)
+        action [PersistText name, doc, PersistInt64 pkgId,PersistText decl,PersistText pkgName] = (DbModule (T.unpack name) (fromDbText doc) (DbPackageKey $ SqlBackendKey pkgId),T.unpack decl,T.unpack pkgName)
         action _ = error "This should not happen"
 
 -- |Executes a query.

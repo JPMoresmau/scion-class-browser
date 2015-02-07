@@ -1,11 +1,14 @@
-{-# LANGUAGE RankNTypes, KindSignatures, CPP #-}
+{-# LANGUAGE RankNTypes, KindSignatures, CPP, FunctionalDependencies, TypeFamilies #-}
 module Scion.PersistentBrowser.ToDb where
 
+import Control.Monad.IO.Class
+import Control.Monad.Trans.Reader
 import Data.Maybe (maybeToList)
 import qualified Data.Map as M
 import qualified Data.Text as T
 import Data.Version (showVersion)
 import Database.Persist
+import Database.Persist.Sql
 import Distribution.Package hiding (Package)
 import Language.Haskell.Exts.Annotated.Syntax hiding (String)
 import Language.Haskell.Exts.Pretty
@@ -16,32 +19,27 @@ import Scion.PersistentBrowser.Types
 -- SAVING IN THE DATABASE
 -- ======================
 
--- savePackageToDb :: PersistBackend backend m => Documented Package -> backend m ()
 savePackageToDb :: forall (m :: * -> *).
-                     PersistStore m =>
-                     Package Doc -> m ()
+                     MonadIO m =>
+                     Package Doc
+                     -> ReaderT
+                          SqlBackend m ()
 savePackageToDb (Package doc (PackageIdentifier (PackageName name) version) modules) = 
   do pkgId <- insert $ DbPackage name (showVersion version) (docToString doc)
      mapM_ (saveModuleToDb pkgId) (M.elems modules)
   
--- saveModuleToDb :: PersistBackend backend m => DbPackageId -> Documented Module -> backend m ()
 saveModuleToDb :: forall (m :: * -> *).
-                    PersistStore m =>
-                    KeyBackend
-                      (PersistMonadBackend m) (DbPackageGeneric (PersistMonadBackend m))
-                    -> Module Doc -> m ()
+                    MonadIO m =>
+                    Key DbPackage -> Module Doc -> ReaderT SqlBackend m ()
 saveModuleToDb pkgId (Module doc (Just (ModuleHead _ (ModuleName _ name)_ _)) _ _ decls) =
   do moduleId <- insert $ DbModule name (docToString doc) pkgId
      mapM_ (saveDeclToDb moduleId) decls
 saveModuleToDb _ m = error $ "saveModuleToDb: This should never happen" ++ (show m)
 
--- saveDeclToDb :: PersistBackend backend m => DbModuleId -> Documented Decl -> backend m ()
--- Datatypes
+
 saveDeclToDb :: forall (m :: * -> *).
-                  PersistStore m =>
-                  KeyBackend
-                    (PersistMonadBackend m) (DbModuleGeneric (PersistMonadBackend m))
-                  -> Decl Doc -> m ()
+                  MonadIO m =>
+                  Key DbModule -> Decl Doc -> ReaderT SqlBackend m ()
 saveDeclToDb moduleId (GDataDecl doc (DataType _) ctx hd kind decls _) =
   do let (declName, declVars) = declHeadToDb hd
      declId <- insert $ DbDecl DbData declName (docToString doc)
@@ -94,32 +92,27 @@ saveDeclToDb moduleId (TypeDecl doc hd ty) =
 saveDeclToDb _ t = error $ "saveDeclToDb: This should never happen" ++ (show t)
 
 saveTyVarToDb :: forall (m :: * -> *).
-                   PersistStore m =>
-                   KeyBackend
-                     (PersistMonadBackend m) (DbDeclGeneric (PersistMonadBackend m))
-                   -> String -> m (Key (DbTyVarGeneric (PersistMonadBackend m)))
+                   MonadIO m =>
+                   Key DbDecl -> String -> ReaderT SqlBackend m (Key DbTyVar)
 saveTyVarToDb declId var = insert $ DbTyVar var declId
 
+
 saveFunDepToDb :: forall (m :: * -> *).
-                    PersistStore m =>
-                    KeyBackend
-                      (PersistMonadBackend m) (DbDeclGeneric (PersistMonadBackend m))
-                    -> String -> m (Key (DbTyVarGeneric (PersistMonadBackend m)))
+                    MonadIO m =>
+                    Key DbDecl -> String -> ReaderT SqlBackend m (Key DbTyVar)
 saveFunDepToDb declId var = insert $ DbTyVar var declId
 
+
 saveContextToDb :: forall (m :: * -> *).
-                     PersistStore m =>
-                     KeyBackend
-                       (PersistMonadBackend m) (DbDeclGeneric (PersistMonadBackend m))
-                     -> String -> m (Key (DbContextGeneric (PersistMonadBackend m)))
+                     MonadIO m =>
+                     Key DbDecl -> String -> ReaderT SqlBackend m (Key DbContext)
 saveContextToDb declId ctx = insert $ DbContext ctx declId
 
+
 saveConstructorToDb :: forall (m :: * -> *) l.
-                         (SrcInfo l, PersistStore m) =>
-                         KeyBackend
-                           (PersistMonadBackend m) (DbDeclGeneric (PersistMonadBackend m))
-                         -> GadtDecl l
-                         -> m (Key (DbConstructorGeneric (PersistMonadBackend m)))
+                         (SrcInfo l, MonadIO m) =>
+                         Key DbDecl
+                         -> GadtDecl l -> ReaderT SqlBackend m (Key DbConstructor)
 #if MIN_VERSION_haskell_src_exts(1,16,0) 
 saveConstructorToDb declId (GadtDecl _ name _ ty) = insert $ DbConstructor (getNameString name) (singleLinePrettyPrint ty) declId
 #else
@@ -129,38 +122,32 @@ saveConstructorToDb declId (GadtDecl _ name ty) = insert $ DbConstructor (getNam
 -- ============================
 
 deletePackageByInfo :: forall (m :: * -> *).
-                         PersistQuery m =>
-                         PackageIdentifier -> m ()
+                         MonadIO m =>
+                         PackageIdentifier -> ReaderT SqlBackend m ()
 deletePackageByInfo (PackageIdentifier (PackageName name) version) =
   do Just pkg <- selectFirst [ DbPackageName ==. name, DbPackageVersion ==. showVersion version ] []
      let pkgId = entityKey pkg
      deletePackage pkgId
 
 deletePackage :: forall (m :: * -> *).
-                   PersistQuery m =>
-                   KeyBackend
-                     (PersistMonadBackend m) (DbPackageGeneric (PersistMonadBackend m))
-                   -> m ()
+                   MonadIO m =>
+                   Key DbPackage -> ReaderT SqlBackend m ()
 deletePackage pkgId =
   do modules <- selectList [ DbModulePackageId ==. pkgId ] []
      mapM_ (deleteModule . entityKey) modules
      delete pkgId
 
 deleteModule :: forall (m :: * -> *).
-                  PersistQuery m =>
-                  KeyBackend
-                    (PersistMonadBackend m) (DbModuleGeneric (PersistMonadBackend m))
-                  -> m ()
+                  MonadIO m =>
+                  Key DbModule -> ReaderT SqlBackend m ()
 deleteModule moduleId =
   do decls <- selectList [ DbDeclModuleId ==. moduleId ] []
      mapM_ (deleteDecl . entityKey) decls
      delete moduleId
 
 deleteDecl :: forall (m :: * -> *).
-                PersistQuery m =>
-                KeyBackend
-                  (PersistMonadBackend m) (DbDeclGeneric (PersistMonadBackend m))
-                -> m ()
+                MonadIO m =>
+                Key DbDecl -> ReaderT SqlBackend m ()
 deleteDecl declId =
   do deleteWhere [ DbTyVarDeclId ==. declId ]
      deleteWhere [ DbFunDepDeclId ==. declId ]

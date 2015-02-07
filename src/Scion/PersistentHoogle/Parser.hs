@@ -5,6 +5,7 @@ module Scion.PersistentHoogle.Parser where
 import Data.List (intercalate)
 import qualified Data.Text as T
 import Database.Persist
+import Database.Persist.Sql
 import Language.Haskell.Exts.Annotated.Syntax
 import Scion.PersistentBrowser.DbTypes
 import Scion.PersistentBrowser.Parser.Internal
@@ -112,9 +113,9 @@ convertHalfToResult (HalfModule mname _) =
                ++ " AND DbModule.name = ?"
      mods <- queryDb sql [mname] action
      return $ if null mods then Nothing else Just (RModule mods)
-  where action [PersistText modName, modDoc, pkgId@(PersistInt64 _), PersistText pkgName, PersistText pkgVersion] =
+  where action [PersistText modName, modDoc, PersistInt64 pkgId, PersistText pkgName, PersistText pkgVersion] =
           ( DbPackageIdentifier (T.unpack pkgName) (T.unpack pkgVersion)
-          , DbModule (T.unpack modName) (fromDbText modDoc) (Key pkgId) )
+          , DbModule (T.unpack modName) (fromDbText modDoc) (DbPackageKey $ SqlBackendKey pkgId) )
         action _ = error "This should not happen"
 convertHalfToResult (HalfDecl mname dcl) =
   do let sql = "SELECT DbDecl.id, DbDecl.declType, DbDecl.name, DbDecl.doc, DbDecl.kind, DbDecl.signature, DbDecl.equals, DbDecl.moduleId"
@@ -128,13 +129,13 @@ convertHalfToResult (HalfDecl mname dcl) =
      completeDecls <- mapM (\(pkgId, modName, dclKey, dclInfo) -> do complete <- getAllDeclInfo (dclKey, dclInfo)
                                                                      return (pkgId, modName, complete) ) decls
      return $ if null completeDecls then Nothing else Just (RDeclaration completeDecls)
-  where action [ declId@(PersistInt64 _), PersistText declType, PersistText declName
-               , declDoc, declKind, declSignature, declEquals, modId@(PersistInt64 _)
+  where action [ PersistInt64 declId, PersistText declType, PersistText declName
+               , declDoc, declKind, declSignature, declEquals, PersistInt64 modId
                , PersistText pkgName, PersistText pkgVersion ] =
-               let (innerDclKey :: DbDeclId) = Key declId
+               let (innerDclKey :: DbDeclId) = DbDeclKey $ SqlBackendKey declId
                    innerDcl = DbDecl (read (T.unpack declType)) (T.unpack declName) (fromDbText declDoc)
                                      (fromDbText declKind) (fromDbText declSignature) (fromDbText declEquals)
-                                     (Key modId)
+                                     (DbModuleKey $ SqlBackendKey modId)
                in ( DbPackageIdentifier (T.unpack pkgName) (T.unpack pkgVersion)
                   , mname
                   , innerDclKey
@@ -156,18 +157,18 @@ convertHalfToResult (HalfGadtDecl mname dcl) =
                                                                           return (pkgId, modName, complete, cst) ) decls
      return $ if null completeDecls then Nothing else Just (RConstructor completeDecls)
   where action [ PersistText constName, PersistText constSignature
-               , declId@(PersistInt64 _), PersistText declType, PersistText declName
-               , declDoc, declKind, declSignature, declEquals, modId@(PersistInt64 _)
+               , PersistInt64 declId, PersistText declType, PersistText declName
+               , declDoc, declKind, declSignature, declEquals, PersistInt64 modId
                , PersistText pkgName, PersistText pkgVersion ] =
-               let (innerDclKey :: DbDeclId) = Key declId
+               let (innerDclKey :: DbDeclId) = DbDeclKey $ SqlBackendKey declId
                    innerDcl = DbDecl (read (T.unpack declType)) (T.unpack declName) (fromDbText declDoc)
                                      (fromDbText declKind) (fromDbText declSignature) (fromDbText declEquals)
-                                     (Key modId)
+                                     (DbModuleKey $ SqlBackendKey modId)
                in ( DbPackageIdentifier (T.unpack pkgName) (T.unpack pkgVersion)
                   , mname
                   , innerDclKey
                   , innerDcl
-                  , DbConstructor (T.unpack constName) (T.unpack constSignature) (Key declId)
+                  , DbConstructor (T.unpack constName) (T.unpack constSignature) (DbDeclKey $ SqlBackendKey declId)
                   )
         action _ = error "This should not happen"
 
